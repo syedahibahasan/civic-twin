@@ -1,6 +1,6 @@
 import { DigitalTwin, Policy } from '../types';
 
-const GROQ_API_KEY = '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';
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 export async function generateGroqChatResponse(
