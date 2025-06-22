@@ -1,15 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-
-interface Congressman {
-  id: string;
-  name: string;
-  state: string;
-  district: string;
-  party: string;
-  zipCode: string;
-  email: string;
-  avatar?: string;
-}
+import { Congressman } from '../types';
 
 interface AuthState {
   user: Congressman | null;
@@ -75,16 +65,18 @@ interface AuthProviderProps {
 }
 
 // Mock congressman database
-const mockCongressmen = [
+const mockCongressmen: Congressman[] = [
   {
     id: '1',
     name: 'Rep. Sarah Johnson',
     state: 'California',
     district: 'CA-12',
     party: 'Democratic',
-    zipCode: '94110',
     email: 'sarah.johnson@congress.gov',
     avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
+    phone: '(202) 225-1234',
+    termStart: '2021-01-03',
+    committee: 'House Committee on Energy and Commerce',
   },
   {
     id: '2',
@@ -92,9 +84,11 @@ const mockCongressmen = [
     state: 'New York',
     district: 'NY-08',
     party: 'Democratic',
-    zipCode: '10001',
     email: 'michael.chen@congress.gov',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+    phone: '(202) 225-5678',
+    termStart: '2019-01-03',
+    committee: 'House Committee on Financial Services',
   },
   {
     id: '3',
@@ -102,9 +96,11 @@ const mockCongressmen = [
     state: 'Texas',
     district: 'TX-29',
     party: 'Democratic',
-    zipCode: '77001',
     email: 'emily.rodriguez@congress.gov',
     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
+    phone: '(202) 225-9012',
+    termStart: '2023-01-03',
+    committee: 'House Committee on Education and Labor',
   },
   {
     id: '4',
@@ -112,9 +108,11 @@ const mockCongressmen = [
     state: 'Florida',
     district: 'FL-27',
     party: 'Republican',
-    zipCode: '33101',
     email: 'david.thompson@congress.gov',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+    phone: '(202) 225-3456',
+    termStart: '2021-01-03',
+    committee: 'House Committee on Armed Services',
   },
 ];
 

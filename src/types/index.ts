@@ -6,6 +6,19 @@ export interface Policy {
   uploadedAt: Date;
 }
 
+export interface Congressman {
+  id: string;
+  name: string;
+  email: string;
+  district: string;
+  state: string;
+  party: string;
+  avatar: string;
+  phone?: string;
+  termStart?: string;
+  committee?: string;
+}
+
 export interface CensusData {
   zipCode: string;
   population: number;
