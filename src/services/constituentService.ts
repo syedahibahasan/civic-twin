@@ -1,5 +1,6 @@
 import { DigitalTwin, CensusData } from '../types';
 import { getConstituentsForDistrict, fetchDistrictData } from './censusApi';
+import { generateConstituentsFromCensusData } from './aiService';
 
 class ConstituentService {
   private constituents: DigitalTwin[] = [];
@@ -31,18 +32,34 @@ class ConstituentService {
     this.lastDistrict = district;
 
     try {
-      // Fetch both census data and constituents
-      const [districtCensusData, constituentsData] = await Promise.all([
-        fetchDistrictData(district),
-        getConstituentsForDistrict(district, count)
-      ]);
-      
+      // Fetch census data first
+      const districtCensusData = await fetchDistrictData(district);
       this.censusData = districtCensusData;
+      
+      if (districtCensusData.length === 0) {
+        throw new Error('No census data available for district');
+      }
+
+      // Use the enhanced AI service to generate realistic constituents based on Census data
+      console.log(`Generating ${count} realistic constituents using AI for district ${district}`);
+      const representativeData = districtCensusData[0]; // Use first ZIP/district data as representative
+      
+      const constituentsData = await generateConstituentsFromCensusData(representativeData, count);
       this.constituents = constituentsData;
+      
+      console.log(`Successfully generated ${constituentsData.length} realistic constituents`);
       return this.constituents;
     } catch (error) {
       console.error('Error fetching constituents:', error);
-      throw error;
+      // Fallback to the original method if AI generation fails
+      try {
+        const constituentsData = await getConstituentsForDistrict(district, count);
+        this.constituents = constituentsData;
+        return this.constituents;
+      } catch (fallbackError) {
+        console.error('Fallback method also failed:', fallbackError);
+        throw error;
+      }
     } finally {
       this.isLoading = false;
     }
@@ -53,6 +70,89 @@ class ConstituentService {
     this.censusData = [];
     this.lastDistrict = null;
     return this.getConstituents(district, count);
+  }
+
+  // New method to generate common constituent types for dashboard
+  async getCommonConstituentTypes(district: string): Promise<DigitalTwin[]> {
+    try {
+      const districtCensusData = await fetchDistrictData(district);
+      if (districtCensusData.length === 0) {
+        throw new Error('No census data available for district');
+      }
+
+      const representativeData = districtCensusData[0];
+      
+      // Generate a diverse set of common constituent types
+      const commonTypes = [
+        { type: 'Student', count: 2 },
+        { type: 'Working Professional', count: 3 },
+        { type: 'Small Business Owner', count: 2 },
+        { type: 'Senior Citizen', count: 2 },
+        { type: 'Parent', count: 2 },
+        { type: 'Veteran', count: 1 },
+        { type: 'Healthcare Worker', count: 2 },
+        { type: 'Teacher', count: 1 }
+      ];
+
+      const allConstituents: DigitalTwin[] = [];
+      
+      for (const { type, count } of commonTypes) {
+        try {
+          // Generate specific constituent types using AI
+          const typeConstituents = await this.generateSpecificConstituentType(representativeData, type, count);
+          allConstituents.push(...typeConstituents);
+        } catch (error) {
+          console.warn(`Failed to generate ${type} constituents, using fallback`);
+          // Fallback to general generation
+          const fallbackConstituents = await generateConstituentsFromCensusData(representativeData, count);
+          allConstituents.push(...fallbackConstituents);
+        }
+      }
+
+      return allConstituents.slice(0, 15); // Limit to 15 total
+    } catch (error) {
+      console.error('Error generating common constituent types:', error);
+      // Fallback to basic generation
+      return this.getConstituents(district, 15);
+    }
+  }
+
+  // Helper method to generate specific constituent types
+  private async generateSpecificConstituentType(censusData: CensusData, type: string, count: number): Promise<DigitalTwin[]> {
+    // This would ideally use the AI service with specific prompts for each type
+    // For now, we'll use the general generation and filter/transform the results
+    const constituents = await generateConstituentsFromCensusData(censusData, count * 2); // Generate more to filter from
+    
+    // Filter and transform to match the requested type
+    const filteredConstituents = constituents
+      .filter(constituent => {
+        const occupation = constituent.occupation.toLowerCase();
+        const story = constituent.personalStory.toLowerCase();
+        
+        switch (type.toLowerCase()) {
+          case 'student':
+            return occupation.includes('student') || story.includes('student') || story.includes('college') || story.includes('university');
+          case 'working professional':
+            return occupation.includes('engineer') || occupation.includes('manager') || occupation.includes('analyst') || occupation.includes('consultant');
+          case 'small business owner':
+            return occupation.includes('owner') || occupation.includes('entrepreneur') || story.includes('business') || story.includes('company');
+          case 'senior citizen':
+            return constituent.age > 65 || story.includes('retire') || story.includes('senior');
+          case 'parent':
+            return story.includes('parent') || story.includes('child') || story.includes('family');
+          case 'veteran':
+            return story.includes('veteran') || story.includes('military') || story.includes('service');
+          case 'healthcare worker':
+            return occupation.includes('nurse') || occupation.includes('doctor') || occupation.includes('medical') || occupation.includes('healthcare');
+          case 'teacher':
+            return occupation.includes('teacher') || occupation.includes('professor') || occupation.includes('educator');
+          default:
+            return true;
+        }
+      })
+      .slice(0, count);
+
+    return filteredConstituents;
   }
 
   getConstituentById(id: string): DigitalTwin | undefined {

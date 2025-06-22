@@ -8,6 +8,7 @@ interface UseConstituentsReturn {
   isLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+  refreshCommonTypes: () => Promise<void>;
   stats: ReturnType<typeof constituentService.getConstituentStats>;
   censusData: CensusData[];
   totalPopulation: number;
@@ -17,7 +18,7 @@ interface UseConstituentsReturn {
   censusEconomicIndicators: ReturnType<typeof constituentService.getCensusEconomicIndicators>;
 }
 
-export function useConstituents(count: number = 10): UseConstituentsReturn {
+export function useConstituents(count: number = 10, useCommonTypes: boolean = false): UseConstituentsReturn {
   const { state } = useAuth();
   const [constituents, setConstituents] = useState<DigitalTwin[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,9 +34,16 @@ export function useConstituents(count: number = 10): UseConstituentsReturn {
     setError(null);
 
     try {
-      console.log(`Fetching constituents for district: ${state.user.district}`);
-      const data = await constituentService.getConstituents(state.user.district, count);
-      console.log(`Successfully fetched ${data.length} constituents`);
+      console.log(`Fetching ${useCommonTypes ? 'common constituent types' : 'constituents'} for district: ${state.user.district}`);
+      
+      let data: DigitalTwin[];
+      if (useCommonTypes) {
+        data = await constituentService.getCommonConstituentTypes(state.user.district);
+      } else {
+        data = await constituentService.getConstituents(state.user.district, count);
+      }
+      
+      console.log(`Successfully fetched ${data.length} ${useCommonTypes ? 'common constituent types' : 'constituents'}`);
       setConstituents(data);
     } catch (err) {
       console.error('Error fetching constituents:', err);
@@ -57,11 +65,23 @@ export function useConstituents(count: number = 10): UseConstituentsReturn {
     }
   };
 
+  const refreshCommonTypes = async () => {
+    if (!state.user?.district) return;
+    
+    try {
+      const data = await constituentService.getCommonConstituentTypes(state.user.district);
+      setConstituents(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh common constituent types');
+    }
+  };
+
   useEffect(() => {
     if (state.user?.district) {
       fetchConstituents();
     }
-  }, [state.user?.district, count]);
+  }, [state.user?.district, count, useCommonTypes]);
 
   const stats = constituentService.getConstituentStats();
   const censusData = constituentService.getCensusData();
@@ -76,6 +96,7 @@ export function useConstituents(count: number = 10): UseConstituentsReturn {
     isLoading,
     error,
     refresh,
+    refreshCommonTypes,
     stats,
     censusData,
     totalPopulation,
