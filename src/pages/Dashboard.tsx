@@ -328,146 +328,176 @@ const DashboardHome: React.FC = () => {
       </div>
 
       {/* Census Data Summary */}
-      {totalPopulation > 0 && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <BarChart3 className="h-6 w-6 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900">District Census Overview</h2>
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+        <div className="flex items-center space-x-2 mb-4">
+          <BarChart3 className="h-6 w-6 text-blue-600" />
+          <h2 className="text-xl font-semibold text-gray-900">District Census Overview</h2>
+        </div>
+        
+        {/* Census Demographics Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Total Population Widget */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <Users className="h-4 w-4 text-blue-600" />
+              <h3 className="text-sm font-semibold text-gray-900">Total Population</h3>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-blue-600">
+                {totalPopulation > 0 ? totalPopulation.toLocaleString() : 'N/A'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">residents in district</p>
+            </div>
           </div>
-          
-          {/* Census Demographics Grid */}
-          {(censusDemographics || censusAgeGroups || censusOccupations || censusEconomicIndicators) && (
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Total Population Widget */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex items-center space-x-2 mb-3">
-                  <Users className="h-4 w-4 text-blue-600" />
-                  <h3 className="text-sm font-semibold text-gray-900">Total Population</h3>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">{totalPopulation.toLocaleString()}</p>
-                  <p className="text-xs text-gray-500 mt-1">residents in district</p>
-                </div>
-              </div>
 
-              {/* Median Income Widget */}
-              {censusEconomicIndicators && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">Median Income</h3>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-green-600">${censusEconomicIndicators.medianIncome.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500 mt-1">household income</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Homeownership Rate Widget */}
-              {censusEconomicIndicators && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <Home className="h-4 w-4 text-purple-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">Homeownership</h3>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-purple-600">{censusEconomicIndicators.homeownershipRate}%</p>
-                    <p className="text-xs text-gray-500 mt-1">own their homes</p>
-                  </div>
-                </div>
-              )}
-
-              {/* College Rate Widget */}
-              {censusEconomicIndicators && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <BookOpen className="h-4 w-4 text-indigo-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">College Educated</h3>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-indigo-600">{censusEconomicIndicators.collegeRate}%</p>
-                    <p className="text-xs text-gray-500 mt-1">have college degree</p>
-                  </div>
-                </div>
-              )}
+          {/* Median Income Widget */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <DollarSign className="h-4 w-4 text-green-600" />
+              <h3 className="text-sm font-semibold text-gray-900">Median Income</h3>
             </div>
-          )}
-
-          {/* Charts and Detailed Data Grid */}
-          {(censusDemographics || censusAgeGroups || censusOccupations) && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-              {/* Racial Demographics Pie Chart */}
-              {censusDemographics && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <BarChart3 className="h-4 w-4 text-blue-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">Racial Demographics</h3>
-                  </div>
-                  <div className="h-48">
-                    {pieChartData && <Pie data={pieChartData} options={pieChartOptions} />}
-                  </div>
-                </div>
-              )}
-
-              {/* Age Demographics Bar Chart */}
-              {censusAgeGroups && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <Calendar className="h-4 w-4 text-purple-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">Age Distribution</h3>
-                  </div>
-                  <div className="h-48">
-                    {barChartData && <Bar data={barChartData} options={barChartOptions} />}
-                  </div>
-                </div>
-              )}
-
-              {/* Top Jobs */}
-              {censusOccupations && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <Users className="h-4 w-4 text-green-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">Top Occupations</h3>
-                  </div>
-                  <div className="space-y-2">
-                    {censusOccupations.map((job, index) => (
-                      <div key={job.job} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-semibold">
-                            {index + 1}
-                          </div>
-                          <p className="text-xs font-medium text-gray-900">{job.job}</p>
-                        </div>
-                        <p className="text-xs font-semibold text-green-600">{job.percentage}%</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="text-center">
+              <p className="text-2xl font-bold text-green-600">
+                {censusEconomicIndicators?.medianIncome ? 
+                  `$${censusEconomicIndicators.medianIncome.toLocaleString()}` : 
+                  'N/A'
+                }
+              </p>
+              <p className="text-xs text-gray-500 mt-1">household income</p>
             </div>
-          )}
+          </div>
 
-          {/* Poverty Rate Warning */}
-          {censusEconomicIndicators && censusEconomicIndicators.povertyRate > 10 && (
-            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <AlertTriangle className="h-4 w-4 text-orange-600" />
-                <p className="text-sm text-orange-800">
-                  <span className="font-medium">Poverty Rate: {censusEconomicIndicators.povertyRate}%</span> - 
-                  This district has a higher than average poverty rate, indicating significant economic challenges.
-                </p>
-              </div>
+          {/* Homeownership Rate Widget */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <Home className="h-4 w-4 text-purple-600" />
+              <h3 className="text-sm font-semibold text-gray-900">Homeownership</h3>
             </div>
-          )}
-          
-          <div className="mt-4 pt-4 border-t border-blue-200">
-            <p className="text-sm text-gray-600 text-center">
-              All data sourced from U.S. Census Bureau American Community Survey (ACS) API
-            </p>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-purple-600">
+                {censusEconomicIndicators?.homeownershipRate !== undefined ? 
+                  `${censusEconomicIndicators.homeownershipRate}%` : 
+                  'N/A'
+                }
+              </p>
+              <p className="text-xs text-gray-500 mt-1">own their homes</p>
+            </div>
+          </div>
+
+          {/* College Rate Widget */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <BookOpen className="h-4 w-4 text-indigo-600" />
+              <h3 className="text-sm font-semibold text-gray-900">College Educated</h3>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-indigo-600">
+                {censusEconomicIndicators?.collegeRate !== undefined ? 
+                  `${censusEconomicIndicators.collegeRate}%` : 
+                  'N/A'
+                }
+              </p>
+              <p className="text-xs text-gray-500 mt-1">have college degree</p>
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Charts and Detailed Data Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          {/* Racial Demographics Pie Chart */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <BarChart3 className="h-4 w-4 text-blue-600" />
+              <h3 className="text-sm font-semibold text-gray-900">Racial Demographics</h3>
+            </div>
+            <div className="h-48">
+              {censusDemographics && pieChartData ? (
+                <Pie data={pieChartData} options={pieChartOptions} />
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-500">
+                  <p>N/A - Data not available</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Age Demographics Bar Chart */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <Calendar className="h-4 w-4 text-purple-600" />
+              <h3 className="text-sm font-semibold text-gray-900">Age Distribution</h3>
+            </div>
+            <div className="h-48">
+              {censusAgeGroups && barChartData ? (
+                <Bar data={barChartData} options={barChartOptions} />
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-500">
+                  <p>N/A - Data not available</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Top Jobs */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <Users className="h-4 w-4 text-green-600" />
+              <h3 className="text-sm font-semibold text-gray-900">Top Occupations</h3>
+            </div>
+            <div className="space-y-2">
+              {censusOccupations && censusOccupations.length > 0 ? (
+                censusOccupations.map((job, index) => (
+                  <div key={job.job} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-semibold">
+                        {index + 1}
+                      </div>
+                      <p className="text-xs font-medium text-gray-900">{job.job}</p>
+                    </div>
+                    <p className="text-xs font-semibold text-green-600">{job.percentage}%</p>
+                  </div>
+                ))
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-500">
+                  <p>N/A - Data not available</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Poverty Rate Warning */}
+        {censusEconomicIndicators && censusEconomicIndicators.povertyRate > 10 && (
+          <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <p className="text-sm text-orange-800">
+                <span className="font-medium">Poverty Rate: {censusEconomicIndicators.povertyRate}%</span> - 
+                This district has a higher than average poverty rate, indicating significant economic challenges.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Data Availability Notice */}
+        {!censusDemographics && !censusAgeGroups && !censusOccupations && !censusEconomicIndicators && (
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <p className="text-sm text-yellow-800">
+                <span className="font-medium">Census Data Unavailable</span> - 
+                Census data for this district is not currently available. Constituent data will be generated using default values.
+              </p>
+            </div>
+          </div>
+        )}
+        
+        <div className="mt-4 pt-4 border-t border-blue-200">
+          <p className="text-sm text-gray-600 text-center">
+            All data sourced from U.S. Census Bureau American Community Survey (ACS) API
+          </p>
+        </div>
+      </div>
 
       {/* Quick Actions */}
       <div>

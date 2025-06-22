@@ -553,7 +553,7 @@ function generateFallbackSuggestions(): PolicySuggestion[] {
 
 export async function generateConstituentsFromCensusData(censusData: CensusData, count: number = 10): Promise<DigitalTwin[]> {
   try {
-    const response = await callAnthropicAPI(`You are creating realistic digital twin constituents based on REAL Census data for ${censusData.zipCode.includes('-') ? `Congressional District ${censusData.zipCode}` : `ZIP code ${censusData.zipCode}`}. Generate ${count} UNIQUE individuals that ACCURATELY reflect the FULL income distribution and demographics of the district.
+    const response = await callAnthropicAPI(`You are creating realistic digital twin constituents based on REAL Census data for Congressional District ${censusData.zipCode}. Generate ${count} UNIQUE individuals that ACCURATELY reflect the FULL income distribution and demographics of the district.
 
 CRITICAL REQUIREMENTS FOR ACCURACY:
 1. Age distribution MUST match the Census age groups data exactly
@@ -578,7 +578,9 @@ CENSUS DATA TO USE:
 - Poverty Rate: ${censusData.povertyRate || 'Not available'}%
 - College Rate: ${censusData.collegeRate || 'Not available'}%
 
-Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, `Create ${count} REALISTIC digital twin constituents for ${censusData.zipCode.includes('-') ? `Congressional District ${censusData.zipCode}` : `ZIP code ${censusData.zipCode}`} that are REPRESENTATIVE of this Census data:
+IMPORTANT: You MUST return ONLY a valid JSON array. Do not include any explanatory text, markdown, or other formatting. The response must start with [ and end with ].
+
+Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, `Create ${count} REALISTIC digital twin constituents for Congressional District ${censusData.zipCode} that are REPRESENTATIVE of this Census data:
 
 Population: ${censusData.population.toLocaleString()}
 Median Income: $${censusData.medianIncome.toLocaleString()}
@@ -614,21 +616,44 @@ REQUIREMENTS:
 4. Create realistic personal stories that reflect the district's characteristics
 5. Ensure the overall group represents the district's diversity without being rigid
 
-Use "Constituent #1", "Constituent #2", etc. for names.`, 3000);
+Use "Constituent #1", "Constituent #2", etc. for names.
+
+CRITICAL: Return ONLY a valid JSON array. No markdown, no explanations, no other text. Just the JSON array starting with [ and ending with ].`, 3000);
 
     if (response) {
       try {
-        const twins = JSON.parse(response) as DigitalTwin[];
+        // Clean the response to extract JSON if there's extra text
+        let cleanedResponse = response.trim();
+        
+        // Find the first [ and last ] to extract JSON
+        const startIndex = cleanedResponse.indexOf('[');
+        const endIndex = cleanedResponse.lastIndexOf(']');
+        
+        if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+          cleanedResponse = cleanedResponse.substring(startIndex, endIndex + 1);
+        }
+        
+        // Try to parse the cleaned response
+        const twins = JSON.parse(cleanedResponse) as DigitalTwin[];
+        
+        // Validate that we got an array
+        if (!Array.isArray(twins)) {
+          throw new Error('Response is not an array');
+        }
+        
         return twins.map((twin: DigitalTwin, index: number) => ({
           ...twin,
           id: `constituent-${index + 1}`,
           name: `Constituent #${index + 1}`,
-          zipCode: censusData.zipCode,
+          zipCode: censusData.zipCode, // This is now the district identifier
           policyImpact: 'To be determined based on policy analysis'
         }));
       } catch (parseError) {
         console.error('Error parsing constituents response:', parseError);
         console.log('Raw response:', response);
+        console.log('Response length:', response.length);
+        console.log('First 200 characters:', response.substring(0, 200));
+        console.log('Last 200 characters:', response.substring(response.length - 200));
         return generateAccurateFallbackConstituents(censusData, count);
       }
     }

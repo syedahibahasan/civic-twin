@@ -1,5 +1,5 @@
 import { DigitalTwin, CensusData } from '../types';
-import { getConstituentsForDistrict, fetchDistrictData } from './censusApi';
+import { censusApi } from './censusApi';
 import { generateConstituentsFromCensusData } from './aiService';
 
 class ConstituentService {
@@ -45,30 +45,29 @@ class ConstituentService {
 
       // If no cache, fetch census data and generate new constituents
       console.log(`No cache found, generating new constituents for district ${district}`);
-      const districtCensusData = await fetchDistrictData(district);
-      this.censusData = districtCensusData;
+      const districtCensusData = await censusApi.getDistrictData(district);
+      this.censusData = [districtCensusData];
       
-      if (districtCensusData.length === 0) {
+      if (!districtCensusData) {
         throw new Error('No census data available for district');
       }
 
       // Use the enhanced AI service to generate realistic constituents based on Census data
       console.log(`Generating ${count} realistic constituents using AI for district ${district}`);
-      const representativeData = districtCensusData[0]; // Use first ZIP/district data as representative
       
-      const constituentsData = await generateConstituentsFromCensusData(representativeData, count);
+      const constituentsData = await generateConstituentsFromCensusData(districtCensusData, count);
       this.constituents = constituentsData;
       
       // Cache the generated constituents
-      await this.cacheConstituents(district, constituentsData, representativeData);
+      await this.cacheConstituents(district, constituentsData, districtCensusData);
       
       console.log(`Successfully generated and cached ${constituentsData.length} realistic constituents`);
       return this.constituents;
     } catch (error) {
       console.error('Error fetching constituents:', error);
-      // Fallback to the original method if AI generation fails
+      // Fallback to simple generation if AI generation fails
       try {
-        const constituentsData = await getConstituentsForDistrict(district, count);
+        const constituentsData = await this.generateSimpleConstituents(district, count);
         this.constituents = constituentsData;
         return this.constituents;
       } catch (fallbackError) {
@@ -78,6 +77,266 @@ class ConstituentService {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  private async generateSimpleConstituents(district: string, count: number = 10): Promise<DigitalTwin[]> {
+    try {
+      const censusData = await censusApi.getDistrictData(district);
+      if (!censusData) {
+        console.warn(`No census data available for district ${district}, using fallback data`);
+        return this.generateConstituentsWithFallbackData(district, count);
+      }
+
+      const constituents: DigitalTwin[] = [];
+      const names = this.generateNamesFromDemographics();
+      
+      for (let i = 0; i < count; i++) {
+        const name = names[Math.floor(Math.random() * names.length)];
+        
+        // Generate age based on median age with some variation
+        const age = Math.floor(Math.max(18, Math.min(85, 
+          (censusData.medianAge || 40) + (Math.random() - 0.5) * 30
+        )));
+        
+        // Generate income based on median income with realistic distribution
+        const medianIncome = Math.max(30000, censusData.medianIncome || 50000);
+        const incomeMultiplier = 0.5 + Math.random() * 2; // 0.5x to 2.5x median
+        const annualIncome = Math.floor(medianIncome * incomeMultiplier);
+        
+        // Select education level based on district demographics
+        const education = this.selectEducationLevel(censusData.educationLevels);
+        
+        // Select occupation based on education and income
+        const occupation = this.selectOccupation(education, annualIncome);
+        
+        // Generate demographic background
+        const demographics = this.selectDemographicBackground(censusData.demographics);
+        
+        const constituent: DigitalTwin = {
+          id: `constituent-${i + 1}`,
+          name,
+          age,
+          education,
+          annualIncome,
+          occupation,
+          demographics,
+          zipCode: censusData.zipCode, // This is now the district identifier
+          personalStory: this.generatePersonalStory(name, age, education, occupation, annualIncome, demographics),
+          policyImpact: 'To be determined based on policy analysis'
+        };
+        
+        constituents.push(constituent);
+      }
+      
+      return constituents;
+    } catch (error) {
+      console.error('Error generating simple constituents:', error);
+      console.log('Using fallback data due to Census API error');
+      return this.generateConstituentsWithFallbackData(district, count);
+    }
+  }
+
+  private generateConstituentsWithFallbackData(district: string, count: number = 10): DigitalTwin[] {
+    console.log(`Generating ${count} constituents with fallback data for district ${district}`);
+    
+    // Create fallback census data
+    const fallbackCensusData: CensusData = {
+      zipCode: district,
+      population: 750000, // Typical district population
+      medianIncome: 65000, // National median
+      medianAge: 38,
+      educationLevels: {
+        lessThanHighSchool: 10,
+        highSchool: 25,
+        someCollege: 20,
+        bachelors: 30,
+        graduate: 15
+      },
+      demographics: {
+        white: 60,
+        black: 12,
+        hispanic: 18,
+        asian: 6,
+        other: 4
+      },
+      ageGroups: {
+        '18-24': 90000,
+        '25-34': 135000,
+        '35-44': 120000,
+        '45-54': 112500,
+        '55-64': 105000,
+        '65-74': 90000,
+        '75+': 97500
+      },
+      occupations: {
+        management: 25,
+        service: 20,
+        salesOffice: 30,
+        construction: 10,
+        production: 15
+      },
+      homeownershipRate: 65,
+      povertyRate: 12,
+      collegeRate: 35,
+      incomeDistribution: {
+        'Under $25,000': 15,
+        '$25,000-$50,000': 25,
+        '$50,000-$100,000': 35,
+        '$100,000-$200,000': 20,
+        'Over $200,000': 5
+      }
+    };
+
+    // Store the fallback data
+    this.censusData = [fallbackCensusData];
+
+    const constituents: DigitalTwin[] = [];
+    const names = this.generateNamesFromDemographics();
+    
+    for (let i = 0; i < count; i++) {
+      const name = names[Math.floor(Math.random() * names.length)];
+      
+      // Generate age based on fallback median age
+      const age = Math.floor(Math.max(18, Math.min(85, 
+        fallbackCensusData.medianAge + (Math.random() - 0.5) * 30
+      )));
+      
+      // Generate income based on fallback median income
+      const medianIncome = fallbackCensusData.medianIncome;
+      const incomeMultiplier = 0.5 + Math.random() * 2;
+      const annualIncome = Math.floor(medianIncome * incomeMultiplier);
+      
+      // Select education level based on fallback demographics
+      const education = this.selectEducationLevel(fallbackCensusData.educationLevels);
+      
+      // Select occupation based on education and income
+      const occupation = this.selectOccupation(education, annualIncome);
+      
+      // Generate demographic background
+      const demographics = this.selectDemographicBackground(fallbackCensusData.demographics);
+      
+      const constituent: DigitalTwin = {
+        id: `constituent-${i + 1}`,
+        name,
+        age,
+        education,
+        annualIncome,
+        occupation,
+        demographics,
+        zipCode: district,
+        personalStory: this.generatePersonalStory(name, age, education, occupation, annualIncome, demographics),
+        policyImpact: 'To be determined based on policy analysis'
+      };
+      
+      constituents.push(constituent);
+    }
+    
+    this.constituents = constituents;
+    return constituents;
+  }
+
+  private generateNamesFromDemographics(): string[] {
+    // Generate anonymized constituent names
+    const names = [];
+    for (let i = 1; i <= 20; i++) {
+      names.push(`Constituent #${i}`);
+    }
+    return names;
+  }
+
+  private selectEducationLevel(educationLevels: CensusData['educationLevels']): string {
+    const total = Object.values(educationLevels).reduce((sum, val) => sum + val, 0);
+    const random = Math.random() * total;
+    
+    let cumulative = 0;
+    
+    if (random < (cumulative += educationLevels.lessThanHighSchool)) {
+      return 'High School Diploma';
+    }
+    if (random < (cumulative += educationLevels.highSchool)) {
+      return 'High School Diploma';
+    }
+    if (random < (cumulative += educationLevels.someCollege)) {
+      return 'Some College';
+    }
+    if (random < (cumulative += educationLevels.bachelors)) {
+      return 'Bachelor\'s Degree';
+    }
+    return 'Master\'s Degree';
+  }
+
+  private selectOccupation(education: string, income: number): string {
+    const OCCUPATIONS = {
+      'Healthcare': ['Doctor', 'Nurse', 'Medical Assistant', 'Pharmacist', 'Physical Therapist'],
+      'Education': ['Teacher', 'Professor', 'School Administrator', 'Librarian', 'Tutor'],
+      'Technology': ['Software Engineer', 'Data Analyst', 'IT Manager', 'Web Developer', 'Systems Administrator'],
+      'Business': ['Manager', 'Accountant', 'Sales Representative', 'Marketing Specialist', 'HR Manager'],
+      'Service': ['Restaurant Manager', 'Retail Supervisor', 'Customer Service Rep', 'Hotel Manager', 'Chef'],
+      'Construction': ['Construction Manager', 'Electrician', 'Plumber', 'Carpenter', 'Architect'],
+      'Government': ['Government Employee', 'Police Officer', 'Firefighter', 'Postal Worker', 'Administrator'],
+      'Transportation': ['Truck Driver', 'Bus Driver', 'Delivery Driver', 'Pilot', 'Train Conductor'],
+      'Manufacturing': ['Factory Worker', 'Machine Operator', 'Quality Control', 'Production Manager', 'Technician'],
+      'Retail': ['Sales Associate', 'Store Manager', 'Cashier', 'Customer Service', 'Inventory Specialist']
+    };
+
+    let category: keyof typeof OCCUPATIONS;
+    
+    if (education.includes('Master') || education.includes('Doctorate')) {
+      category = income > 80000 ? 'Technology' : 'Education';
+    } else if (education.includes('Bachelor')) {
+      category = income > 60000 ? 'Technology' : 'Business';
+    } else if (education.includes('Some College')) {
+      category = income > 50000 ? 'Healthcare' : 'Service';
+    } else {
+      category = income > 40000 ? 'Construction' : 'Service';
+    }
+    
+    const occupations = OCCUPATIONS[category];
+    return occupations[Math.floor(Math.random() * occupations.length)];
+  }
+
+  private selectDemographicBackground(demographics: CensusData['demographics']): string {
+    const total = Object.values(demographics).reduce((sum, val) => sum + val, 0);
+    const random = Math.random() * total;
+    
+    let cumulative = 0;
+    
+    if (random < (cumulative += demographics.white)) {
+      return 'White';
+    }
+    if (random < (cumulative += demographics.black)) {
+      return 'Black';
+    }
+    if (random < (cumulative += demographics.hispanic)) {
+      return 'Hispanic';
+    }
+    if (random < (cumulative += demographics.asian)) {
+      return 'Asian';
+    }
+    return 'Other';
+  }
+
+  private generatePersonalStory(
+    name: string, 
+    age: number, 
+    education: string, 
+    occupation: string, 
+    income: number, 
+    demographics: string
+  ): string {
+    const stories = [
+      `${name} is a ${age}-year-old ${occupation.toLowerCase()} with a ${education.toLowerCase()}. They've lived in the district for ${Math.floor(Math.random() * 20) + 5} years and are concerned about local economic development.`,
+      
+      `A ${demographics.toLowerCase()} resident, ${name} works as a ${occupation.toLowerCase()} and has a ${education.toLowerCase()}. They're passionate about education and healthcare access in their community.`,
+      
+      `${name}, ${age}, is a ${occupation.toLowerCase()} who recently completed their ${education.toLowerCase()}. They're focused on affordable housing and transportation issues in the district.`,
+      
+      `With ${Math.floor(Math.random() * 20) + 10} years of experience as a ${occupation.toLowerCase()}, ${name} has seen the district change significantly. They care about maintaining the community's character while supporting growth.`,
+      
+      `${name} is a ${age}-year-old ${occupation.toLowerCase()} with a ${education.toLowerCase()}. They're particularly concerned about environmental issues and sustainable development in the area.`
+    ];
+    
+    return stories[Math.floor(Math.random() * stories.length)];
   }
 
   private async getCachedConstituents(district: string): Promise<{ constituents: DigitalTwin[], censusData?: CensusData } | null> {
@@ -153,12 +412,10 @@ class ConstituentService {
   // New method to generate common constituent types for dashboard
   async getCommonConstituentTypes(district: string): Promise<DigitalTwin[]> {
     try {
-      const districtCensusData = await fetchDistrictData(district);
-      if (districtCensusData.length === 0) {
+      const districtCensusData = await censusApi.getDistrictData(district);
+      if (!districtCensusData) {
         throw new Error('No census data available for district');
       }
-
-      const representativeData = districtCensusData[0];
       
       // Generate a diverse set of common constituent types
       const commonTypes = [
@@ -177,12 +434,12 @@ class ConstituentService {
       for (const { type, count } of commonTypes) {
         try {
           // Generate specific constituent types using AI
-          const typeConstituents = await this.generateSpecificConstituentType(representativeData, type, count);
+          const typeConstituents = await this.generateSpecificConstituentType(districtCensusData, type, count);
           allConstituents.push(...typeConstituents);
-        } catch (error) {
+        } catch {
           console.warn(`Failed to generate ${type} constituents, using fallback`);
           // Fallback to general generation
-          const fallbackConstituents = await generateConstituentsFromCensusData(representativeData, count);
+          const fallbackConstituents = await generateConstituentsFromCensusData(districtCensusData, count);
           allConstituents.push(...fallbackConstituents);
         }
       }
@@ -198,39 +455,8 @@ class ConstituentService {
   // Helper method to generate specific constituent types
   private async generateSpecificConstituentType(censusData: CensusData, type: string, count: number): Promise<DigitalTwin[]> {
     // This would ideally use the AI service with specific prompts for each type
-    // For now, we'll use the general generation and filter/transform the results
-    const constituents = await generateConstituentsFromCensusData(censusData, count * 2); // Generate more to filter from
-    
-    // Filter and transform to match the requested type
-    const filteredConstituents = constituents
-      .filter(constituent => {
-        const occupation = constituent.occupation.toLowerCase();
-        const story = constituent.personalStory.toLowerCase();
-        
-        switch (type.toLowerCase()) {
-          case 'student':
-            return occupation.includes('student') || story.includes('student') || story.includes('college') || story.includes('university');
-          case 'working professional':
-            return occupation.includes('engineer') || occupation.includes('manager') || occupation.includes('analyst') || occupation.includes('consultant');
-          case 'small business owner':
-            return occupation.includes('owner') || occupation.includes('entrepreneur') || story.includes('business') || story.includes('company');
-          case 'senior citizen':
-            return constituent.age > 65 || story.includes('retire') || story.includes('senior');
-          case 'parent':
-            return story.includes('parent') || story.includes('child') || story.includes('family');
-          case 'veteran':
-            return story.includes('veteran') || story.includes('military') || story.includes('service');
-          case 'healthcare worker':
-            return occupation.includes('nurse') || occupation.includes('doctor') || occupation.includes('medical') || occupation.includes('healthcare');
-          case 'teacher':
-            return occupation.includes('teacher') || occupation.includes('professor') || occupation.includes('educator');
-          default:
-            return true;
-        }
-      })
-      .slice(0, count);
-
-    return filteredConstituents;
+    // For now, use the general AI generation
+    return generateConstituentsFromCensusData(censusData, count);
   }
 
   getConstituentById(id: string): DigitalTwin | undefined {
