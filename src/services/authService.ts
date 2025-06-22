@@ -23,7 +23,19 @@ class AuthService {
 
   constructor() {
     // Load token from localStorage on initialization
-    this.token = localStorage.getItem('authToken');
+    this.loadTokenFromStorage();
+  }
+
+  private loadTokenFromStorage(): void {
+    try {
+      const storedToken = localStorage.getItem('authToken');
+      if (storedToken) {
+        this.token = storedToken;
+      }
+    } catch (error) {
+      console.warn('Failed to load token from localStorage:', error);
+      this.token = null;
+    }
   }
 
   private async makeRequest<T>(
@@ -53,6 +65,10 @@ class AuthService {
       const data = await response.json();
 
       if (!response.ok) {
+        // If token is invalid, clear it
+        if (response.status === 401 || response.status === 403) {
+          this.clearAuth();
+        }
         throw new Error(data.error || 'An error occurred');
       }
 
@@ -73,7 +89,11 @@ class AuthService {
 
     // Store token
     this.token = response.token;
-    localStorage.setItem('authToken', response.token);
+    try {
+      localStorage.setItem('authToken', response.token);
+    } catch (error) {
+      console.warn('Failed to store token in localStorage:', error);
+    }
 
     return response;
   }
@@ -95,12 +115,18 @@ class AuthService {
 
     // Store token
     this.token = response.token;
-    localStorage.setItem('authToken', response.token);
+    try {
+      localStorage.setItem('authToken', response.token);
+    } catch (error) {
+      console.warn('Failed to store token in localStorage:', error);
+    }
 
     return response;
   }
 
   async getProfile(): Promise<ProfileResponse> {
+    // Ensure token is loaded from storage before making request
+    this.loadTokenFromStorage();
     return this.makeRequest<ProfileResponse>('/auth/profile');
   }
 
@@ -138,26 +164,32 @@ class AuthService {
     }
 
     // Clear local storage and token
-    this.token = null;
-    localStorage.removeItem('authToken');
+    this.clearAuth();
 
     return { message: 'Logged out successfully' };
   }
 
   // Check if user is authenticated
   isAuthenticated(): boolean {
+    // Always check localStorage for the most current token
+    this.loadTokenFromStorage();
     return !!this.token;
   }
 
   // Get current token
   getToken(): string | null {
+    this.loadTokenFromStorage();
     return this.token;
   }
 
   // Clear authentication (for logout)
   clearAuth(): void {
     this.token = null;
-    localStorage.removeItem('authToken');
+    try {
+      localStorage.removeItem('authToken');
+    } catch (error) {
+      console.warn('Failed to remove token from localStorage:', error);
+    }
   }
 
   // Health check

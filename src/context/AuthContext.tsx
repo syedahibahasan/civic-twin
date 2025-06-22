@@ -4,36 +4,25 @@ import authService from '../services/authService';
 
 interface AuthState {
   user: Congressman | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
 }
 
 type AuthAction =
-  | { type: 'LOGIN'; payload: Congressman }
-  | { type: 'LOGOUT' }
+  | { type: 'SET_USER'; payload: Congressman | null }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_USER'; payload: Congressman | null };
+  | { type: 'CLEAR_USER' };
 
 const initialState: AuthState = {
   user: null,
-  isAuthenticated: false,
-  isLoading: true, // Start with loading true to check for existing token
+  isLoading: true,
 };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
-    case 'LOGIN':
+    case 'SET_USER':
       return {
         ...state,
         user: action.payload,
-        isAuthenticated: true,
-        isLoading: false,
-      };
-    case 'LOGOUT':
-      return {
-        ...state,
-        user: null,
-        isAuthenticated: false,
         isLoading: false,
       };
     case 'SET_LOADING':
@@ -41,11 +30,10 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         ...state,
         isLoading: action.payload,
       };
-    case 'SET_USER':
+    case 'CLEAR_USER':
       return {
         ...state,
-        user: action.payload,
-        isAuthenticated: !!action.payload,
+        user: null,
         isLoading: false,
       };
     default:
@@ -55,6 +43,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 
 interface AuthContextType {
   state: AuthState;
+  isAuthenticated: () => boolean;
   login: (email: string, password: string) => Promise<boolean>;
   register: (userData: {
     email: string;
@@ -114,12 +103,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkAuth();
   }, []);
 
+  // Always check token directly instead of relying on state
+  const isAuthenticated = (): boolean => {
+    return authService.isAuthenticated();
+  };
+
   const login = async (email: string, password: string): Promise<boolean> => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
       const { user } = await authService.login(email, password);
-      dispatch({ type: 'LOGIN', payload: user });
+      dispatch({ type: 'SET_USER', payload: user });
       return true;
     } catch (error) {
       console.error('Login failed:', error);
@@ -142,7 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     try {
       const { user } = await authService.register(userData);
-      dispatch({ type: 'LOGIN', payload: user });
+      dispatch({ type: 'SET_USER', payload: user });
       return true;
     } catch (error) {
       console.error('Registration failed:', error);
@@ -157,7 +151,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Logout failed:', error);
     }
-    dispatch({ type: 'LOGOUT' });
+    dispatch({ type: 'CLEAR_USER' });
   };
 
   const updateProfile = async (profileData: {
@@ -180,6 +174,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const value = {
     state,
+    isAuthenticated,
     login,
     register,
     logout,

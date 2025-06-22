@@ -9,9 +9,9 @@ import Dashboard from './pages/Dashboard';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { state } = useAuth();
+  const { isAuthenticated } = useAuth();
   
-  if (!state.isAuthenticated) {
+  if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
   

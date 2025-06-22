@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import UploadPage from './Upload';
 import Analysis from './Analysis';
 import Profile from './Profile';
+import ConstituentList from '../components/ConstituentList';
 
 const Dashboard: React.FC = () => {
   const { state, logout } = useAuth();
@@ -30,6 +31,7 @@ const Dashboard: React.FC = () => {
 
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: Building2 },
+    { path: '/dashboard/constituents', label: 'Constituents', icon: Users },
     { path: '/dashboard/upload', label: 'Upload Policy', icon: Upload },
     { path: '/dashboard/analysis', label: 'Analysis', icon: BarChart3 },
     { path: '/dashboard/profile', label: 'Profile', icon: User },
@@ -62,6 +64,7 @@ const Dashboard: React.FC = () => {
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            title="Close sidebar"
           >
             <X className="h-6 w-6" />
           </button>
@@ -120,6 +123,7 @@ const Dashboard: React.FC = () => {
               <button
                 onClick={() => setSidebarOpen(true)}
                 className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                title="Open sidebar"
               >
                 <Menu className="h-6 w-6" />
               </button>
@@ -138,6 +142,7 @@ const Dashboard: React.FC = () => {
         <main className="flex-1 p-6 overflow-auto">
           <Routes>
             <Route path="/" element={<DashboardHome />} />
+            <Route path="/constituents" element={<ConstituentList />} />
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/analysis" element={<Analysis />} />
             <Route path="/profile" element={<Profile />} />
@@ -156,6 +161,13 @@ const DashboardHome: React.FC = () => {
   if (!state.user) return null;
 
   const quickActions = [
+    {
+      title: 'View Constituents',
+      description: 'See your district\'s demographic profiles',
+      icon: Users,
+      action: () => navigate('/dashboard/constituents'),
+      color: 'bg-indigo-500',
+    },
     {
       title: 'Upload New Policy',
       description: 'Analyze a new bill or policy document',
@@ -199,70 +211,46 @@ const DashboardHome: React.FC = () => {
               </span>
               <span className="flex items-center space-x-1">
                 <Flag className="h-4 w-4" />
-                <span>{state.user.state}</span>
+                <span>{state.user.party}</span>
               </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Constituent Info Cards */}
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <MapPin className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{state.user.district}</p>
-              <p className="text-sm text-gray-600">Your District</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-              <Flag className="h-6 w-6 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{state.user.state}</p>
-              <p className="text-sm text-gray-600">State</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Users className="h-6 w-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">~750K</p>
-              <p className="text-sm text-gray-600">Constituents</p>
+              {state.user.committee && (
+                <span className="flex items-center space-x-1">
+                  <FileText className="h-4 w-4" />
+                  <span>{state.user.committee}</span>
+                </span>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-        <h2 className="text-2xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
-        <div className="grid md:grid-cols-3 gap-6">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action, index) => (
             <button
               key={index}
               onClick={action.action}
-              className="text-left p-6 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-200 bg-white hover:bg-gray-50"
+              className="bg-white rounded-lg border border-gray-200 p-6 text-left hover:shadow-md transition-shadow duration-200"
             >
-              <div className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center mb-4 shadow-sm`}>
+              <div className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center mb-4`}>
                 <action.icon className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">{action.title}</h3>
-              <p className="text-gray-600 leading-relaxed">{action.description}</p>
+              <p className="text-sm text-gray-600">{action.description}</p>
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Recent Activity or Stats */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">District Overview</h2>
+        <p className="text-gray-600">
+          Your district, {state.user.district}, has been analyzed with demographic data from the Census Bureau. 
+          Click "View Constituents" to see detailed profiles of your constituents and how they might be affected by policy changes.
+        </p>
       </div>
     </div>
   );
