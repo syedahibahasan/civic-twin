@@ -132,7 +132,7 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center space-x-4">
               <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-500">
                 <span>Welcome back,</span>
-                <span className="font-medium text-gray-900">{state.user.name.split(' ')[1]}</span>
+                <span className="font-medium text-gray-900">{state.user.name}</span>
               </div>
             </div>
           </div>
@@ -202,7 +202,7 @@ const DashboardHome: React.FC = () => {
             className="w-20 h-20 rounded-full object-cover border-4 border-gray-100 shadow-sm"
           />
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Welcome back, {state.user.name.split(' ')[1]}!</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Welcome back, {state.user.name}!</h1>
             <p className="text-lg text-gray-600 mt-2">Ready to analyze policy impact on your constituents?</p>
             <div className="flex items-center space-x-4 mt-4 text-sm text-gray-500">
               <span className="flex items-center space-x-1">
