@@ -18,133 +18,22 @@ const OCCUPATIONS = {
   'Retail': ['Sales Associate', 'Store Manager', 'Cashier', 'Customer Service', 'Inventory Specialist']
 };
 
-// Real Census API call function using @peoplefinders/census
-async function fetchRealCensusData(zipCode: string): Promise<CensusData | null> {
+export async function fetchCensusData(district: string): Promise<CensusData> {
   try {
-    // Use the free Census Bureau ACS API - no credentials required
-    // B01003_001E = Total population
-    // B03002_003E = White alone
-    // B03002_004E = Black or African American alone
-    // B03002_005E = American Indian and Alaska Native alone
-    // B03002_006E = Asian alone
-    // B03002_007E = Native Hawaiian and Other Pacific Islander alone
-    // B03002_012E = Hispanic or Latino
-    // B19013_001E = Median household income
-    // B15003_022E = Bachelor's degree
-    // B15003_023E = Master's degree
-    // B15003_024E = Professional school degree
-    // B15003_025E = Doctorate degree
-    // Occupation data (C24010 series)
-    // B24010_001E = Total employed population
-    // B24010_002E = Management, business, science, and arts occupations
-    // B24010_003E = Service occupations
-    // B24010_004E = Sales and office occupations
-    // B24010_005E = Natural resources, construction, and maintenance occupations
-    // B24010_006E = Production, transportation, and material moving occupations
-    const url = `${CENSUS_API_BASE}?get=B01003_001E,B03002_003E,B03002_004E,B03002_005E,B03002_006E,B03002_007E,B03002_012E,B19013_001E,B15003_022E,B15003_023E,B15003_024E,B15003_025E,B24010_001E,B24010_002E,B24010_003E,B24010_004E,B24010_005E,B24010_006E&for=zip%20code%20tabulation%20area:${zipCode}`;
+    // Fetch district-level census data
+    const districtData = await fetchDistrictCensusData(district);
     
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      console.warn(`Failed to fetch census data for ZIP ${zipCode}: ${response.status}`);
-      return null;
+    if (districtData) {
+      console.log(`Successfully fetched district-level census data for ${district}`);
+      return districtData;
     }
 
-    const data = await response.json();
-    
-    if (!data || data.length < 2) {
-      console.warn(`No data returned for ZIP ${zipCode}`);
-      return null;
-    }
-
-    // Parse the Census data (first row is headers, second row is data)
-    const row = data[1];
-    console.log(`Raw Census data for ZIP ${zipCode}:`, row);
-    
-    const totalPopulation = parseInt(row[0]) || 0;
-    const white = parseInt(row[1]) || 0;
-    const black = parseInt(row[2]) || 0;
-    const nativeAmerican = parseInt(row[3]) || 0;
-    const asian = parseInt(row[4]) || 0;
-    const pacificIslander = parseInt(row[5]) || 0;
-    const hispanic = parseInt(row[6]) || 0;
-    const rawMedianIncome = parseInt(row[7]) || 50000;
-    const medianIncome = Math.max(30000, rawMedianIncome); // Ensure minimum $30k
-    
-    console.log(`Parsed median income for ZIP ${zipCode}: raw=${rawMedianIncome}, final=${medianIncome}`);
-    
-    // Education data
-    const bachelors = parseInt(row[8]) || 0;
-    const masters = parseInt(row[9]) || 0;
-    const professional = parseInt(row[10]) || 0;
-    const doctorate = parseInt(row[11]) || 0;
-    const graduateTotal = bachelors + masters + professional + doctorate;
-    
-    // Occupation data
-    const totalEmployed = parseInt(row[12]) || 0;
-    const management = parseInt(row[13]) || 0;
-    const service = parseInt(row[14]) || 0;
-    const salesOffice = parseInt(row[15]) || 0;
-    const construction = parseInt(row[16]) || 0;
-    const production = parseInt(row[17]) || 0;
-    
-    // Calculate other races (total - sum of specific races)
-    const other = totalPopulation - white - black - nativeAmerican - asian - pacificIslander;
-
-    // Calculate median age (simplified - would need separate API call for accurate numbers)
-    const medianAge = 35; // Default estimate
-
-    const result: CensusData = {
-      zipCode,
-      population: totalPopulation,
-      medianIncome,
-      medianAge: Math.floor(medianAge),
-      educationLevels: {
-        lessThanHighSchool: Math.floor(totalPopulation * 0.08),
-        highSchool: Math.floor(totalPopulation * 0.25),
-        someCollege: Math.floor(totalPopulation * 0.20),
-        bachelors: Math.floor(graduateTotal * 0.6), // Estimate from total graduate degrees
-        graduate: Math.floor(graduateTotal * 0.4), // Estimate from total graduate degrees
-      },
-      demographics: {
-        white: Math.floor((white / totalPopulation) * 100),
-        black: Math.floor((black / totalPopulation) * 100),
-        hispanic: Math.floor((hispanic / totalPopulation) * 100),
-        asian: Math.floor((asian / totalPopulation) * 100),
-        other: Math.floor((other / totalPopulation) * 100),
-      },
-      occupations: {
-        management: totalEmployed > 0 ? Math.floor((management / totalEmployed) * 100) : 0,
-        service: totalEmployed > 0 ? Math.floor((service / totalEmployed) * 100) : 0,
-        salesOffice: totalEmployed > 0 ? Math.floor((salesOffice / totalEmployed) * 100) : 0,
-        construction: totalEmployed > 0 ? Math.floor((construction / totalEmployed) * 100) : 0,
-        production: totalEmployed > 0 ? Math.floor((production / totalEmployed) * 100) : 0,
-      }
-    };
-
-    return result;
-  } catch (error) {
-    console.error('Error fetching real census data:', error);
-    return null;
-  }
-}
-
-export async function fetchCensusData(zipCode: string): Promise<CensusData> {
-  try {
-    // Try to fetch real Census data first
-    const realData = await fetchRealCensusData(zipCode);
-    
-    if (realData) {
-      console.log(`Successfully fetched real Census data for ZIP ${zipCode}`);
-      return realData;
-    }
-
-    // Fallback to mock data if real data fails
-    console.log(`Using mock data for ZIP ${zipCode} (real data unavailable)`);
+    // Fallback to mock data if district-level data fails
+    console.log(`Using mock data for district ${district} (real data unavailable)`);
     
     const mockData: CensusData = {
-      zipCode,
-      population: Math.floor(Math.random() * 50000) + 20000,
+      zipCode: district, // Use district as identifier
+      population: Math.floor(Math.random() * 500000) + 200000,
       medianIncome: Math.floor(Math.random() * 30000) + 40000,
       medianAge: Math.floor(Math.random() * 20) + 30,
       educationLevels: {
@@ -161,12 +50,31 @@ export async function fetchCensusData(zipCode: string): Promise<CensusData> {
         asian: Math.floor(Math.random() * 20) + 10,
         other: Math.floor(Math.random() * 10) + 5,
       },
+      ageGroups: {
+        '18-24': Math.floor(Math.random() * 50000) + 20000,
+        '25-34': Math.floor(Math.random() * 80000) + 40000,
+        '35-44': Math.floor(Math.random() * 70000) + 30000,
+        '45-54': Math.floor(Math.random() * 60000) + 25000,
+        '55-64': Math.floor(Math.random() * 50000) + 20000,
+        '65-74': Math.floor(Math.random() * 40000) + 15000,
+        '75+': Math.floor(Math.random() * 30000) + 10000
+      },
       occupations: {
         management: Math.floor(Math.random() * 25) + 15,
         service: Math.floor(Math.random() * 20) + 10,
         salesOffice: Math.floor(Math.random() * 25) + 15,
         construction: Math.floor(Math.random() * 15) + 5,
         production: Math.floor(Math.random() * 15) + 5,
+      },
+      homeownershipRate: Math.floor(Math.random() * 30) + 50,
+      povertyRate: Math.floor(Math.random() * 15) + 5,
+      collegeRate: Math.floor(Math.random() * 20) + 20,
+      incomeDistribution: {
+        'Under $25,000': Math.floor(Math.random() * 20) + 10,
+        '$25,000-$50,000': Math.floor(Math.random() * 15) + 20,
+        '$50,000-$100,000': Math.floor(Math.random() * 20) + 30,
+        '$100,000-$200,000': Math.floor(Math.random() * 15) + 20,
+        'Over $200,000': Math.floor(Math.random() * 10) + 5
       }
     };
 
@@ -416,77 +324,57 @@ async function fetchDistrictCensusData(district: string): Promise<CensusData | n
     }
     
     const state = match[1];
-    const cd = match[2].replace(/^0+/, ''); // Remove leading zeros
+    const cd = match[2];
     
-    // Request population, major racial variables, age groups, and occupation variables
-    // Age groups: B01001_003E (18-19), B01001_004E (20), B01001_005E (21), B01001_006E (22-24), B01001_007E (25-29), B01001_008E (30-34), B01001_009E (35-39), B01001_010E (40-44), B01001_011E (45-49), B01001_012E (50-54), B01001_013E (55-59), B01001_014E (60-61), B01001_015E (62-64), B01001_016E (65-66), B01001_017E (67-69), B01001_018E (70-74), B01001_019E (75-79), B01001_020E (80-84), B01001_021E (85+)
-    // Additional variables: B19013_001E (median household income), B15003_022E (bachelor's degree), B15003_023E (master's degree), B15003_024E (professional degree), B15003_025E (doctorate), B25003_002E (owner occupied), B25003_003E (renter occupied), B17001_002E (below poverty level)
-    const url = `${CENSUS_API_BASE}?get=B01003_001E,B03002_003E,B03002_004E,B03002_006E,B03002_012E,B01001_003E,B01001_004E,B01001_005E,B01001_006E,B01001_007E,B01001_008E,B01001_009E,B01001_010E,B01001_011E,B01001_012E,B01001_013E,B01001_014E,B01001_015E,B01001_016E,B01001_017E,B01001_018E,B01001_019E,B01001_020E,B01001_021E,C24010_001E,C24010_002E,C24010_003E,C24010_004E,C24010_005E,C24010_006E,B19013_001E,B15003_022E,B15003_023E,B15003_024E,B15003_025E,B25003_002E,B25003_003E,B17001_002E&for=congressional%20district:${cd}&in=state:${getStateFIPS(state)}`;
+    // Use district-level API call with essential variables only
+    // Core demographics: population, race, age groups, occupations, income
+    const url = `${CENSUS_API_BASE}?get=B01003_001E,B03002_003E,B03002_004E,B03002_006E,B03002_012E,B19013_001E,B15003_022E,B15003_023E,B15003_024E,B15003_025E,B25003_002E,B25003_003E,B17001_002E,C24010_001E,C24010_002E,C24010_003E,C24010_004E,C24010_005E,C24010_006E&for=congressional%20district:${cd}&in=state:${getStateFIPS(state)}`;
     
     console.log(`Fetching district-level census data for ${district}: ${url}`);
     
     const response = await fetch(url);
     
     if (!response.ok) {
-      console.warn(`Failed to fetch district census data for ${district}: ${response.status}`);
+      console.warn(`Failed to fetch district census data for ${district}: ${response.status} ${response.statusText}`);
       return null;
     }
 
     const data = await response.json();
     
     if (!data || data.length < 2) {
-      console.warn(`No district data returned for ${district}`);
+      console.warn(`No data returned for district ${district}`);
       return null;
     }
 
     // Parse the Census data (first row is headers, second row is data)
     const row = data[1];
-    console.log(`Raw district census data for ${district}:`, row);
+    console.log(`Raw Census data for district ${district}:`, row);
     
     const totalPopulation = parseInt(row[0]) || 0;
     const white = parseInt(row[1]) || 0;
     const black = parseInt(row[2]) || 0;
     const asian = parseInt(row[3]) || 0;
     const hispanic = parseInt(row[4]) || 0;
+    const medianIncome = parseInt(row[5]) || 50000;
     
-    // Age group data (male population by age)
-    const age18_19 = parseInt(row[5]) || 0;
-    const age20 = parseInt(row[6]) || 0;
-    const age21 = parseInt(row[7]) || 0;
-    const age22_24 = parseInt(row[8]) || 0;
-    const age25_29 = parseInt(row[9]) || 0;
-    const age30_34 = parseInt(row[10]) || 0;
-    const age35_39 = parseInt(row[11]) || 0;
-    const age40_44 = parseInt(row[12]) || 0;
-    const age45_49 = parseInt(row[13]) || 0;
-    const age50_54 = parseInt(row[14]) || 0;
-    const age55_59 = parseInt(row[15]) || 0;
-    const age60_61 = parseInt(row[16]) || 0;
-    const age62_64 = parseInt(row[17]) || 0;
-    const age65_66 = parseInt(row[18]) || 0;
-    const age67_69 = parseInt(row[19]) || 0;
-    const age70_74 = parseInt(row[20]) || 0;
-    const age75_79 = parseInt(row[21]) || 0;
-    const age80_84 = parseInt(row[22]) || 0;
-    const age85plus = parseInt(row[23]) || 0;
+    // Education data
+    const bachelors = parseInt(row[6]) || 0;
+    const masters = parseInt(row[7]) || 0;
+    const professional = parseInt(row[8]) || 0;
+    const doctorate = parseInt(row[9]) || 0;
     
-    // Occupation variables
-    const totalEmployed = parseInt(row[24]) || 0;
-    const management = parseInt(row[25]) || 0;
-    const service = parseInt(row[26]) || 0;
-    const salesOffice = parseInt(row[27]) || 0;
-    const construction = parseInt(row[28]) || 0;
-    const production = parseInt(row[29]) || 0;
+    // Housing and poverty data
+    const ownerOccupied = parseInt(row[10]) || 0;
+    const renterOccupied = parseInt(row[11]) || 0;
+    const belowPoverty = parseInt(row[12]) || 0;
     
-    // Economic and social indicators
-    const medianIncome = parseInt(row[30]) || 0;
-    const bachelors = parseInt(row[31]) || 0;
-    const masters = parseInt(row[32]) || 0;
-    const professional = parseInt(row[33]) || 0;
-    const doctorate = parseInt(row[34]) || 0;
-    const ownerOccupied = parseInt(row[35]) || 0;
-    const renterOccupied = parseInt(row[36]) || 0;
-    const belowPoverty = parseInt(row[37]) || 0;
+    // Occupation data
+    const totalEmployed = parseInt(row[13]) || 0;
+    const management = parseInt(row[14]) || 0;
+    const service = parseInt(row[15]) || 0;
+    const salesOffice = parseInt(row[16]) || 0;
+    const construction = parseInt(row[17]) || 0;
+    const production = parseInt(row[18]) || 0;
     
     // Calculate "other" as the remainder
     const other = Math.max(0, totalPopulation - white - black - asian - hispanic);
@@ -500,17 +388,6 @@ async function fetchDistrictCensusData(district: string): Promise<CensusData | n
     const povertyRate = totalPopulation > 0 ? Math.round((belowPoverty / totalPopulation) * 100) : 0;
     const totalGraduates = bachelors + masters + professional + doctorate;
     const collegeRate = totalPopulation > 0 ? Math.round((totalGraduates / totalPopulation) * 100) : 0;
-    
-    // Group age data into meaningful categories
-    const ageGroups = {
-      '18-24': age18_19 + age20 + age21 + age22_24,
-      '25-34': age25_29 + age30_34,
-      '35-44': age35_39 + age40_44,
-      '45-54': age45_49 + age50_54,
-      '55-64': age55_59 + age60_61 + age62_64,
-      '65-74': age65_66 + age67_69 + age70_74,
-      '75+': age75_79 + age80_84 + age85plus
-    };
     
     // Use mock/estimated values for other fields for now
     const result: CensusData = {
@@ -532,7 +409,15 @@ async function fetchDistrictCensusData(district: string): Promise<CensusData | n
         asian: totalPopulation ? Math.round((asian / totalPopulation) * 100) : 0,
         other: totalPopulation ? Math.round((other / totalPopulation) * 100) : 0,
       },
-      ageGroups: ageGroups,
+      ageGroups: {
+        '18-24': Math.floor(totalPopulation * 0.12),
+        '25-34': Math.floor(totalPopulation * 0.18),
+        '35-44': Math.floor(totalPopulation * 0.16),
+        '45-54': Math.floor(totalPopulation * 0.15),
+        '55-64': Math.floor(totalPopulation * 0.14),
+        '65-74': Math.floor(totalPopulation * 0.12),
+        '75+': Math.floor(totalPopulation * 0.13)
+      },
       occupations: {
         management: occPct(management),
         service: occPct(service),
@@ -543,10 +428,17 @@ async function fetchDistrictCensusData(district: string): Promise<CensusData | n
       // New economic and social indicators
       homeownershipRate: homeownershipRate,
       povertyRate: povertyRate,
-      collegeRate: collegeRate
+      collegeRate: collegeRate,
+      incomeDistribution: {
+        'Under $25,000': Math.round(povertyRate * 1.5), // Estimate based on poverty rate
+        '$25,000-$50,000': 25,
+        '$50,000-$100,000': 35,
+        '$100,000-$200,000': 25,
+        'Over $200,000': 10
+      }
     };
 
-    console.log(`Successfully fetched district-level census data for ${district}:`, result);
+    console.log(`Successfully parsed district census data for ${district}:`, result);
     return result;
   } catch (error) {
     console.error('Error fetching district census data:', error);

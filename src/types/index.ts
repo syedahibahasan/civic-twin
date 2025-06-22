@@ -57,6 +57,13 @@ export interface CensusData {
   homeownershipRate?: number;
   povertyRate?: number;
   collegeRate?: number;
+  incomeDistribution?: {
+    'Under $25,000': number;
+    '$25,000-$50,000': number;
+    '$50,000-$100,000': number;
+    '$100,000-$200,000': number;
+    'Over $200,000': number;
+  };
 }
 
 export interface DigitalTwin {
