@@ -1,7 +1,7 @@
 // Test script to verify political policies generation
 // Run with: node src/test-political-policies.js
 
-import { generateConstituentsFromCensusData } from './services/aiService.js';
+import { generateConstituentsFromCensusData } from './services/aiService.ts';
 
 async function testPoliticalPolicies() {
   console.log('🧪 Testing Political Policies Generation...\n');

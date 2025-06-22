@@ -124,7 +124,7 @@ class ConstituentService {
           zipCode: censusData.zipCode, // This is now the district identifier
           personalStory: this.generatePersonalStory(name, age, education, occupation, annualIncome, demographics),
           policyImpact: 'To be determined based on policy analysis',
-          politicalPolicies: ['Universal healthcare access', 'Education funding', 'Economic development']
+          politicalPolicies: this.getVariedPoliticalPolicies(i)
         };
         
         constituents.push(constituent);
@@ -228,7 +228,7 @@ class ConstituentService {
         zipCode: district,
         personalStory: this.generatePersonalStory(name, age, education, occupation, annualIncome, demographics),
         policyImpact: 'To be determined based on policy analysis',
-        politicalPolicies: ['Universal healthcare access', 'Education funding', 'Economic development']
+        politicalPolicies: this.getVariedPoliticalPolicies(i)
       };
       
       constituents.push(constituent);
@@ -357,9 +357,20 @@ class ConstituentService {
       const response = await fetch(`/api/cache/constituents/${district}`, {
         headers
       });
-      
+
       if (response.ok) {
         const data = await response.json();
+        console.log('📥 Retrieved cached constituents from database');
+        
+        // Debug: Check if cached constituents have political policies
+        if (data.constituents && data.constituents.length > 0) {
+          console.log('📋 Cached constituents political policies check:');
+          data.constituents.forEach((constituent: DigitalTwin, index: number) => {
+            const hasPolicies = constituent.politicalPolicies && constituent.politicalPolicies.length > 0;
+            console.log(`  Cached Constituent ${index + 1}: ${hasPolicies ? '✅' : '❌'} policies -`, constituent.politicalPolicies);
+          });
+        }
+        
         return {
           constituents: data.constituents,
           censusData: data.censusData
@@ -368,7 +379,7 @@ class ConstituentService {
       
       return null;
     } catch (error) {
-      console.error('Error fetching cached constituents:', error);
+      console.error('❌ Error fetching cached constituents:', error);
       return null;
     }
   }
@@ -385,6 +396,13 @@ class ConstituentService {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
+      // Debug: Check if constituents have political policies before caching
+      console.log('💾 Caching constituents with political policies check:');
+      constituents.forEach((constituent, index) => {
+        const hasPolicies = constituent.politicalPolicies && constituent.politicalPolicies.length > 0;
+        console.log(`  Constituent ${index + 1}: ${hasPolicies ? '✅' : '❌'} policies -`, constituent.politicalPolicies);
+      });
+
       const response = await fetch('/api/cache/constituents', {
         method: 'POST',
         headers,
@@ -396,12 +414,23 @@ class ConstituentService {
       });
 
       if (response.ok) {
-        console.log(`Successfully cached constituents for district ${district}`);
+        console.log(`✅ Successfully cached constituents for district ${district}`);
+        
+        // Debug: Verify what was cached
+        const cachedData = await response.json();
+        console.log('📋 Cached data verification:', {
+          district: cachedData.data?.[0]?.zipCode,
+          count: cachedData.data?.length,
+          hasPolicies: cachedData.data?.[0]?.politicalPolicies?.length > 0,
+          samplePolicies: cachedData.data?.[0]?.politicalPolicies
+        });
       } else {
-        console.warn(`Failed to cache constituents for district ${district}`);
+        console.warn(`❌ Failed to cache constituents for district ${district}`);
+        const errorText = await response.text();
+        console.error('Cache error details:', errorText);
       }
     } catch (error) {
-      console.error('Error caching constituents:', error);
+      console.error('❌ Error caching constituents:', error);
     }
   }
 
@@ -811,6 +840,39 @@ class ConstituentService {
     } catch (error) {
       console.error('Error invalidating all cache:', error);
     }
+  }
+
+  private getVariedPoliticalPolicies(index: number): string[] {
+    const allPolicies = [
+      "Universal healthcare access",
+      "Increased funding for public education", 
+      "Tax credits for small businesses",
+      "Affordable housing initiatives",
+      "Renewable energy incentives",
+      "Student loan forgiveness",
+      "Minimum wage increase",
+      "Climate change action",
+      "Veterans healthcare funding",
+      "Social Security protection",
+      "Broadband infrastructure",
+      "Road and bridge repair",
+      "Mental health services funding",
+      "Vocational training programs",
+      "Rent control measures",
+      "Public transportation funding",
+      "DACA protection",
+      "Medicare expansion",
+      "Tech education funding",
+      "Water system upgrades"
+    ];
+    
+    // Use different policies based on index to ensure variety
+    const startIndex = (index * 3) % allPolicies.length;
+    return [
+      allPolicies[startIndex],
+      allPolicies[(startIndex + 1) % allPolicies.length],
+      allPolicies[(startIndex + 2) % allPolicies.length]
+    ];
   }
 }
 

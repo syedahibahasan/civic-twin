@@ -665,6 +665,8 @@ function generateFallbackSuggestions(): PolicySuggestion[] {
 
 export async function generateConstituentsFromCensusData(censusData: CensusData, count: number = 10): Promise<DigitalTwin[]> {
   try {
+    console.log('🤖 Starting AI generation for', count, 'constituents in district', censusData.zipCode);
+    
     const response = await callAnthropicAPI(`You are creating realistic digital twin constituents based on REAL Census data for Congressional District ${censusData.zipCode}. Generate ${count} UNIQUE individuals that ACCURATELY reflect the FULL income distribution and demographics of the district.
 
 CRITICAL REQUIREMENTS FOR ACCURACY:
@@ -674,7 +676,7 @@ CRITICAL REQUIREMENTS FOR ACCURACY:
 4. Income distribution MUST represent the FULL spectrum - from poverty level to high income
 5. Occupations MUST be SPECIFIC job titles, NOT generic categories
 6. Each constituent must have a UNIQUE personal story that fits their demographic profile AND explains how the specific policy proposal affects them personally
-7. Each constituent must have 3 SPECIFIC political policies they support, based on their demographics, income, occupation, and personal circumstances
+7. Each constituent MUST have exactly 3 political policies they support, based on their demographics, income, occupation, and personal circumstances
 
 OCCUPATION REQUIREMENTS:
 - Use SPECIFIC job titles (e.g., "Teacher", "Nurse", "Software Engineer", "Accountant", etc.)
@@ -688,11 +690,25 @@ PERSONAL STORY REQUIREMENT:
 - Make the impact specific to their circumstances, not generic statements
 
 POLITICAL POLICIES REQUIREMENT:
-- Each constituent must have exactly 3 political policies they support
-- Policies should be realistic and specific (e.g., "Universal healthcare access", "Increased funding for public education", "Tax credits for small businesses")
+- Each constituent MUST have exactly 3 political policies they support
+- Each policy should be ONE CONCISE SENTENCE (e.g., "Universal healthcare access", "Increased funding for public education", "Tax credits for small businesses")
 - Policies should reflect the constituent's demographic profile, income level, occupation, and personal circumstances
 - Avoid generic or vague policies - be specific about what they support
 - Consider how their background influences their political views
+- Keep each policy short and clear - one sentence maximum
+- CRITICAL: Each constituent's policies must be UNIQUE and different from other constituents
+- Generate policies that make sense for their specific age, income, education, occupation, and background
+- Examples of diverse policies to consider:
+  * Healthcare: Universal healthcare access, Lower prescription drug costs, Mental health services funding
+  * Education: Increased funding for public education, Student loan forgiveness, Vocational training programs
+  * Economic: Tax credits for small businesses, Minimum wage increase, Job training programs
+  * Housing: Affordable housing initiatives, Rent control measures, First-time homebuyer assistance
+  * Environment: Renewable energy incentives, Climate change action, Public transportation funding
+  * Immigration: Comprehensive immigration reform, DACA protection, Border security funding
+  * Veterans: Veterans healthcare funding, Military family support, Veteran job programs
+  * Seniors: Social Security protection, Medicare expansion, Senior housing programs
+  * Technology: Broadband infrastructure, Tech education funding, Digital privacy protection
+  * Infrastructure: Road and bridge repair, Public transportation, Water system upgrades
 
 NAMING REQUIREMENT:
 - Use EXACTLY "Constituent #1", "Constituent #2", "Constituent #3", etc. for names
@@ -714,9 +730,20 @@ CENSUS DATA TO USE:
 - Poverty Rate: ${censusData.povertyRate || 'Not available'}%
 - College Rate: ${censusData.collegeRate || 'Not available'}%
 
-IMPORTANT: You MUST return ONLY a valid JSON array. Do not include any explanatory text, markdown, or other formatting. The response must start with [ and end with ].
+CRITICAL JSON STRUCTURE REQUIREMENT:
+You MUST return a JSON array where each object contains ALL of these fields:
+- id: string
+- name: string  
+- age: number
+- education: string
+- annualIncome: number
+- occupation: string
+- demographics: string
+- zipCode: string
+- personalStory: string
+- politicalPolicies: array of exactly 3 strings
 
-Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory, politicalPolicies`, `Create ${count} REALISTIC digital twin constituents for Congressional District ${censusData.zipCode} that are REPRESENTATIVE of this Census data:
+IMPORTANT: You MUST return ONLY a valid JSON array. Do not include any explanatory text, markdown, or other formatting. The response must start with [ and end with ].`, `Create ${count} REALISTIC digital twin constituents for Congressional District ${censusData.zipCode} that are REPRESENTATIVE of this Census data:
 
 Population: ${censusData.population.toLocaleString()}
 Median Income: $${censusData.medianIncome.toLocaleString()}
@@ -751,16 +778,23 @@ REQUIREMENTS:
 3. Include a good mix of different life stages and economic situations
 4. Create realistic personal stories that reflect the district's characteristics
 5. Ensure the overall group represents the district's diversity without being rigid
-6. Each constituent must have exactly 3 political policies they support, based on their background
+6. Each constituent MUST have exactly 3 political policies they support, based on their background
 
 NAMING REQUIREMENT:
 - Use EXACTLY "Constituent #1", "Constituent #2", "Constituent #3", etc. for names
 - Do NOT generate real names, fictional names, or any other naming format
 - This is a strict requirement for privacy and consistency
 
+JSON STRUCTURE:
+Each constituent object MUST include: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory, politicalPolicies
+
 CRITICAL: Return ONLY a valid JSON array. No markdown, no explanations, no other text. Just the JSON array starting with [ and ending with ].`, 3000);
 
+    console.log('📡 AI response received, length:', response?.length || 0);
     if (response) {
+      console.log('📄 First 500 chars of response:', response.substring(0, 500));
+      console.log('📄 Last 500 chars of response:', response.substring(response.length - 500));
+      
       try {
         // Clean the response to extract JSON if there's extra text
         let cleanedResponse = response.trim();
@@ -773,12 +807,37 @@ CRITICAL: Return ONLY a valid JSON array. No markdown, no explanations, no other
           cleanedResponse = cleanedResponse.substring(startIndex, endIndex + 1);
         }
         
+        console.log('🧹 Cleaned response length:', cleanedResponse.length);
+        console.log('🧹 Last 300 chars of cleaned response:', cleanedResponse.substring(cleanedResponse.length - 300));
+        
         // Try to parse the cleaned response
         const twins = JSON.parse(cleanedResponse) as DigitalTwin[];
         
         // Validate that we got an array
         if (!Array.isArray(twins)) {
           throw new Error('Response is not an array');
+        }
+        
+        console.log('✅ Successfully parsed', twins.length, 'constituents from AI response');
+        
+        // Check if political policies are present
+        const hasPolicies = twins.every(twin => twin.politicalPolicies && twin.politicalPolicies.length > 0);
+        console.log('📋 Political policies present in AI response:', hasPolicies);
+        
+        if (hasPolicies) {
+          console.log('🔍 Sample political policies from AI:', twins[0]?.politicalPolicies);
+        } else {
+          console.log('❌ No political policies found in AI response. Sample constituent:', twins[0]);
+          console.log('🔍 Checking all constituents for politicalPolicies field:');
+          twins.forEach((twin, index) => {
+            console.log(`  Constituent ${index + 1}:`, {
+              hasPoliticalPolicies: !!twin.politicalPolicies,
+              politicalPoliciesType: typeof twin.politicalPolicies,
+              politicalPoliciesLength: twin.politicalPolicies?.length,
+              politicalPolicies: twin.politicalPolicies,
+              allKeys: Object.keys(twin)
+            });
+          });
         }
         
         return twins.map((twin: DigitalTwin, index: number) => ({
@@ -797,20 +856,23 @@ CRITICAL: Return ONLY a valid JSON array. No markdown, no explanations, no other
             : ['Universal healthcare access', 'Education funding', 'Economic development']
         }));
       } catch (parseError) {
-        console.error('Error parsing constituents response:', parseError);
+        console.error('❌ Error parsing constituents response:', parseError);
         console.log('Raw response:', response);
         console.log('Response length:', response.length);
-        console.log('First 200 characters:', response.substring(0, 200));
-        console.log('Last 200 characters:', response.substring(response.length - 200));
+        console.log('First 500 characters:', response.substring(0, 500));
+        console.log('Last 500 characters:', response.substring(response.length - 500));
+        console.log('🔄 Falling back to local generation...');
         return generateAccurateFallbackConstituents(censusData, count);
       }
     }
     
+    console.log('❌ No AI response received, falling back to local generation...');
     return generateAccurateFallbackConstituents(censusData, count);
   } catch (error) {
-    console.error('Error generating constituents from Census data:', error);
+    console.error('❌ Error generating constituents from Census data:', error);
     
     // Try fallback to local generation
+    console.log('🔄 Falling back to local generation due to error...');
     return generateAccurateFallbackConstituents(censusData, count);
   }
 }
@@ -848,13 +910,46 @@ function generateAccurateFallbackConstituents(censusData: CensusData, count: num
       zipCode: censusData.zipCode,
       personalStory: generateAccuratePersonalStory(name, age, education, occupation, annualIncome, demo, i),
       policyImpact: 'To be determined based on policy analysis',
-      politicalPolicies: ['Universal healthcare access', 'Education funding', 'Economic development']
+      politicalPolicies: getVariedPoliticalPolicies(i)
     };
     
     constituents.push(constituent);
   }
   
   return constituents;
+}
+
+function getVariedPoliticalPolicies(index: number): string[] {
+  const allPolicies = [
+    "Universal healthcare access",
+    "Increased funding for public education", 
+    "Tax credits for small businesses",
+    "Affordable housing initiatives",
+    "Renewable energy incentives",
+    "Student loan forgiveness",
+    "Minimum wage increase",
+    "Climate change action",
+    "Veterans healthcare funding",
+    "Social Security protection",
+    "Broadband infrastructure",
+    "Road and bridge repair",
+    "Mental health services funding",
+    "Vocational training programs",
+    "Rent control measures",
+    "Public transportation funding",
+    "DACA protection",
+    "Medicare expansion",
+    "Tech education funding",
+    "Water system upgrades"
+  ];
+  
+  // Use different policies based on index to ensure variety
+  const startIndex = (index * 3) % allPolicies.length;
+  return [
+    allPolicies[startIndex],
+    allPolicies[(startIndex + 1) % allPolicies.length],
+    allPolicies[(startIndex + 2) % allPolicies.length]
+  ];
 }
 
 function generateRealisticAge(ageGroups?: CensusData['ageGroups']): number {
