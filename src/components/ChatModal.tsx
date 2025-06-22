@@ -36,7 +36,7 @@ const ChatModal: React.FC<ChatModalProps> = ({ twin, onClose }) => {
         payload: { twinId: twin.id, message: initialMessage },
       });
     }
-  }, []);
+  }, [twinMessages.length, twin.id, twin.name, dispatch]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
