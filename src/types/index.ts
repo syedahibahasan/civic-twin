@@ -38,6 +38,15 @@ export interface CensusData {
     asian: number;
     other: number;
   };
+  ageGroups?: {
+    '18-24': number;
+    '25-34': number;
+    '35-44': number;
+    '45-54': number;
+    '55-64': number;
+    '65-74': number;
+    '75+': number;
+  };
   occupations: {
     management: number;
     service: number;
@@ -45,6 +54,9 @@ export interface CensusData {
     construction: number;
     production: number;
   };
+  homeownershipRate?: number;
+  povertyRate?: number;
+  collegeRate?: number;
 }
 
 export interface DigitalTwin {

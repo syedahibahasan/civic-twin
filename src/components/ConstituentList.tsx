@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { Users, RefreshCw, TrendingUp, DollarSign, GraduationCap, Calendar, MessageCircle, Database, AlertCircle, MapPin, BarChart3, Briefcase } from 'lucide-react';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Pie } from 'react-chartjs-2';
+import { Users, RefreshCw, TrendingUp, DollarSign, GraduationCap, Calendar, MessageCircle, Database, AlertCircle, BarChart3, Briefcase, Home, BookOpen, AlertTriangle } from 'lucide-react';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
+import { Pie, Bar } from 'react-chartjs-2';
 import useConstituents from '../hooks/useConstituents';
 import ConstituentChat from './ConstituentChat';
 import { DigitalTwin } from '../types';
 
 // Register Chart.js components
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 const ConstituentList: React.FC = () => {
-  const { constituents, isLoading, error, refresh, stats, totalPopulation, censusDemographics, censusOccupations } = useConstituents(15);
+  const { constituents, isLoading, error, refresh, stats, totalPopulation, censusDemographics, censusOccupations, censusAgeGroups, censusEconomicIndicators } = useConstituents(15);
   const [selectedConstituent, setSelectedConstituent] = useState<DigitalTwin | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
@@ -52,6 +52,38 @@ const ConstituentList: React.FC = () => {
     ]
   } : null;
 
+  // Prepare bar chart data for age demographics
+  const barChartData = censusAgeGroups ? {
+    labels: censusAgeGroups.map(item => item.ageRange),
+    datasets: [
+      {
+        label: 'Population',
+        data: censusAgeGroups.map(item => item.count),
+        backgroundColor: [
+          '#3B82F6', // Blue
+          '#10B981', // Green
+          '#F59E0B', // Amber
+          '#EF4444', // Red
+          '#8B5CF6', // Purple
+          '#06B6D4', // Cyan
+          '#84CC16'  // Lime
+        ],
+        borderColor: [
+          '#2563EB',
+          '#059669',
+          '#D97706',
+          '#DC2626',
+          '#7C3AED',
+          '#0891B2',
+          '#65A30D'
+        ],
+        borderWidth: 2,
+        borderRadius: 8,
+        borderSkipped: false,
+      }
+    ]
+  } : null;
+
   const pieChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -70,6 +102,36 @@ const ConstituentList: React.FC = () => {
         callbacks: {
           label: function(context: { label: string; parsed: number }) {
             return `${context.label}: ${context.parsed}%`;
+          }
+        }
+      }
+    }
+  };
+
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: { parsed: { y: number } }) {
+            return `Population: ${context.parsed.y.toLocaleString()}`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          callback: function(tickValue: string | number) {
+            if (typeof tickValue === 'number') {
+              return tickValue.toLocaleString();
+            }
+            return tickValue;
           }
         }
       }
@@ -109,95 +171,137 @@ const ConstituentList: React.FC = () => {
             <h2 className="text-xl font-semibold text-gray-900">District Census Overview</h2>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Users className="h-5 w-5 text-blue-600" />
-                <span className="text-sm font-medium text-gray-600">Total Population</span>
+          {/* Census Demographics Grid */}
+          {(censusDemographics || censusAgeGroups || censusOccupations || censusEconomicIndicators) && (
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Total Population Widget */}
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center space-x-2 mb-3">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <h3 className="text-sm font-semibold text-gray-900">Total Population</h3>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">{totalPopulation.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mt-1">residents in district</p>
+                </div>
               </div>
-              <p className="text-3xl font-bold text-blue-600">{totalPopulation.toLocaleString()}</p>
-              <p className="text-sm text-gray-500 mt-1">residents in your district</p>
+
+              {/* Median Income Widget */}
+              {censusEconomicIndicators && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    <h3 className="text-sm font-semibold text-gray-900">Median Income</h3>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-600">${censusEconomicIndicators.medianIncome.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500 mt-1">household income</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Homeownership Rate Widget */}
+              {censusEconomicIndicators && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <Home className="h-4 w-4 text-purple-600" />
+                    <h3 className="text-sm font-semibold text-gray-900">Homeownership</h3>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-purple-600">{censusEconomicIndicators.homeownershipRate}%</p>
+                    <p className="text-xs text-gray-500 mt-1">own their homes</p>
+                  </div>
+                </div>
+              )}
+
+              {/* College Rate Widget */}
+              {censusEconomicIndicators && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <BookOpen className="h-4 w-4 text-indigo-600" />
+                    <h3 className="text-sm font-semibold text-gray-900">College Educated</h3>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-indigo-600">{censusEconomicIndicators.collegeRate}%</p>
+                    <p className="text-xs text-gray-500 mt-1">have college degree</p>
+                  </div>
+                </div>
+              )}
             </div>
-            
-            <div className="text-center">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <MapPin className="h-5 w-5 text-green-600" />
-                <span className="text-sm font-medium text-gray-600">Digital Twins</span>
+          )}
+
+          {/* Charts and Detailed Data Grid */}
+          {(censusDemographics || censusAgeGroups || censusOccupations) && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+              {/* Racial Demographics Pie Chart */}
+              {censusDemographics && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <BarChart3 className="h-4 w-4 text-blue-600" />
+                    <h3 className="text-sm font-semibold text-gray-900">Racial Demographics</h3>
+                  </div>
+                  <div className="h-48">
+                    {pieChartData && <Pie data={pieChartData} options={pieChartOptions} />}
+                  </div>
+                </div>
+              )}
+
+              {/* Age Demographics Bar Chart */}
+              {censusAgeGroups && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <Calendar className="h-4 w-4 text-purple-600" />
+                    <h3 className="text-sm font-semibold text-gray-900">Age Distribution</h3>
+                  </div>
+                  <div className="h-48">
+                    {barChartData && <Bar data={barChartData} options={barChartOptions} />}
+                  </div>
+                </div>
+              )}
+
+              {/* Top Jobs */}
+              {censusOccupations && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <Briefcase className="h-4 w-4 text-green-600" />
+                    <h3 className="text-sm font-semibold text-gray-900">Top Occupations</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {censusOccupations.map((job, index) => (
+                      <div key={job.job} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-semibold">
+                            {index + 1}
+                          </div>
+                          <p className="text-xs font-medium text-gray-900">{job.job}</p>
+                        </div>
+                        <p className="text-xs font-semibold text-green-600">{job.percentage}%</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Poverty Rate Warning */}
+          {censusEconomicIndicators && censusEconomicIndicators.povertyRate > 10 && (
+            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <p className="text-sm text-orange-800">
+                  <span className="font-medium">Poverty Rate: {censusEconomicIndicators.povertyRate}%</span> - 
+                  This district has a higher than average poverty rate, indicating significant economic challenges.
+                </p>
               </div>
-              <p className="text-3xl font-bold text-green-600">{constituents.length}</p>
-              <p className="text-sm text-gray-500 mt-1">representative profiles</p>
             </div>
-            
-            <div className="text-center">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <TrendingUp className="h-5 w-5 text-purple-600" />
-                <span className="text-sm font-medium text-gray-600">Representation</span>
-              </div>
-              <p className="text-3xl font-bold text-purple-600">
-                {totalPopulation > 0 ? Math.round(totalPopulation / constituents.length).toLocaleString() : 0}
-              </p>
-              <p className="text-sm text-gray-500 mt-1">people per digital twin</p>
-            </div>
-          </div>
+          )}
           
           <div className="mt-4 pt-4 border-t border-blue-200">
             <p className="text-sm text-gray-600 text-center">
-              Each digital twin represents approximately {totalPopulation > 0 ? Math.round(totalPopulation / constituents.length).toLocaleString() : 0} real constituents in your district, 
-              generated from U.S. Census Bureau demographic data.
+              All data sourced from U.S. Census Bureau American Community Survey (ACS) API
             </p>
           </div>
-        </div>
-      )}
-
-      {/* Demographics and Jobs Section */}
-      {(censusDemographics || censusOccupations) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Racial Demographics Pie Chart */}
-          {censusDemographics && (
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Racial Demographics</h3>
-              </div>
-              <div className="h-64">
-                {pieChartData && <Pie data={pieChartData} options={pieChartOptions} />}
-              </div>
-              <p className="text-sm text-gray-600 mt-3 text-center">
-                Based on U.S. Census Bureau data for your district
-              </p>
-            </div>
-          )}
-
-          {/* Top Jobs */}
-          {censusOccupations && (
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <Briefcase className="h-5 w-5 text-green-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Top Occupations</h3>
-              </div>
-              <div className="space-y-3">
-                {censusOccupations.map((job, index) => (
-                  <div key={job.job} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-semibold">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{job.job}</p>
-                        <p className="text-sm text-gray-600">Census data</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-green-600">{job.percentage}%</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-sm text-gray-600 mt-3 text-center">
-                Most common occupations in your district from U.S. Census Bureau data
-              </p>
-            </div>
-          )}
         </div>
       )}
 

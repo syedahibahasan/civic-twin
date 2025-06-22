@@ -13,6 +13,8 @@ interface UseConstituentsReturn {
   totalPopulation: number;
   censusDemographics: ReturnType<typeof constituentService.getCensusDemographics>;
   censusOccupations: ReturnType<typeof constituentService.getCensusOccupations>;
+  censusAgeGroups: ReturnType<typeof constituentService.getCensusAgeGroups>;
+  censusEconomicIndicators: ReturnType<typeof constituentService.getCensusEconomicIndicators>;
 }
 
 export function useConstituents(count: number = 10): UseConstituentsReturn {
@@ -66,6 +68,8 @@ export function useConstituents(count: number = 10): UseConstituentsReturn {
   const totalPopulation = constituentService.getDistrictPopulation();
   const censusDemographics = constituentService.getCensusDemographics();
   const censusOccupations = constituentService.getCensusOccupations();
+  const censusAgeGroups = constituentService.getCensusAgeGroups();
+  const censusEconomicIndicators = constituentService.getCensusEconomicIndicators();
 
   return {
     constituents,
@@ -76,7 +80,9 @@ export function useConstituents(count: number = 10): UseConstituentsReturn {
     censusData,
     totalPopulation,
     censusDemographics,
-    censusOccupations
+    censusOccupations,
+    censusAgeGroups,
+    censusEconomicIndicators
   };
 }
 

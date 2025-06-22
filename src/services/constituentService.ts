@@ -191,6 +191,52 @@ class ConstituentService {
     return topOccupations;
   }
 
+  getCensusAgeGroups() {
+    if (this.censusData.length === 0) {
+      return null;
+    }
+
+    // If we have district-level data (single entry), return that directly
+    if (this.censusData.length === 1 && this.censusData[0].zipCode.includes('-') && this.censusData[0].ageGroups) {
+      const ageGroups = this.censusData[0].ageGroups;
+      const totalPopulation = this.censusData[0].population;
+      
+      // Define the correct age order for sorting
+      const ageOrder = ['18-24', '25-34', '35-44', '45-54', '55-64', '65-74', '75+'];
+      
+      return Object.entries(ageGroups)
+        .map(([ageRange, count]) => ({
+          ageRange,
+          count,
+          percentage: totalPopulation > 0 ? Math.round((count / totalPopulation) * 100) : 0
+        }))
+        .sort((a, b) => ageOrder.indexOf(a.ageRange) - ageOrder.indexOf(b.ageRange));
+    }
+
+    // Fallback: return null if no age data available
+    return null;
+  }
+
+  getCensusEconomicIndicators() {
+    if (this.censusData.length === 0) {
+      return null;
+    }
+
+    // If we have district-level data (single entry), return that directly
+    if (this.censusData.length === 1 && this.censusData[0].zipCode.includes('-')) {
+      const data = this.censusData[0];
+      return {
+        medianIncome: data.medianIncome,
+        homeownershipRate: data.homeownershipRate || 0,
+        povertyRate: data.povertyRate || 0,
+        collegeRate: data.collegeRate || 0
+      };
+    }
+
+    // Fallback: return null if no economic data available
+    return null;
+  }
+
   getConstituentStats() {
     if (this.constituents.length === 0) {
       return null;
