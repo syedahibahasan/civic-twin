@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Building2, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -27,14 +27,6 @@ const Login: React.FC = () => {
       setError('Invalid email or password. Please try again.');
     }
   };
-
-  // Demo credentials for easy testing
-  const demoCredentials = [
-    { email: 'sarah.johnson@congress.gov', password: 'password123', name: 'Rep. Sarah Johnson (CA-12)' },
-    { email: 'michael.chen@congress.gov', password: 'password123', name: 'Rep. Michael Chen (NY-08)' },
-    { email: 'emily.rodriguez@congress.gov', password: 'password123', name: 'Rep. Emily Rodriguez (TX-29)' },
-    { email: 'david.thompson@congress.gov', password: 'password123', name: 'Rep. David Thompson (FL-27)' },
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
@@ -117,18 +109,14 @@ const Login: React.FC = () => {
           </form>
         </div>
 
-        {/* Demo Credentials */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-sm font-medium text-blue-900 mb-3">Demo Credentials</h3>
-          <div className="space-y-2">
-            {demoCredentials.map((cred, index) => (
-              <div key={index} className="text-xs text-blue-700">
-                <div className="font-medium">{cred.name}</div>
-                <div>Email: {cred.email}</div>
-                <div>Password: {cred.password}</div>
-              </div>
-            ))}
-          </div>
+        {/* Registration Link */}
+        <div className="text-center">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
+              Create one here
+            </Link>
+          </p>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { Congressman } from '../types';
+import authService from '../services/authService';
 
 interface AuthState {
   user: Congressman | null;
@@ -10,12 +11,13 @@ interface AuthState {
 type AuthAction =
   | { type: 'LOGIN'; payload: Congressman }
   | { type: 'LOGOUT' }
-  | { type: 'SET_LOADING'; payload: boolean };
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_USER'; payload: Congressman | null };
 
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true, // Start with loading true to check for existing token
 };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
@@ -39,6 +41,13 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         ...state,
         isLoading: action.payload,
       };
+    case 'SET_USER':
+      return {
+        ...state,
+        user: action.payload,
+        isAuthenticated: !!action.payload,
+        isLoading: false,
+      };
     default:
       return state;
   }
@@ -47,7 +56,25 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 interface AuthContextType {
   state: AuthState;
   login: (email: string, password: string) => Promise<boolean>;
+  register: (userData: {
+    email: string;
+    password: string;
+    name: string;
+    state?: string;
+    district?: string;
+    party?: string;
+    phone?: string;
+    committee?: string;
+  }) => Promise<boolean>;
   logout: () => void;
+  updateProfile: (profileData: {
+    name?: string;
+    state?: string;
+    district?: string;
+    party?: string;
+    phone?: string;
+    committee?: string;
+  }) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,87 +91,99 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Mock congressman database
-const mockCongressmen: Congressman[] = [
-  {
-    id: '1',
-    name: 'Rep. Sarah Johnson',
-    state: 'California',
-    district: 'CA-12',
-    party: 'Democratic',
-    email: 'sarah.johnson@congress.gov',
-    avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
-    phone: '(202) 225-1234',
-    termStart: '2021-01-03',
-    committee: 'House Committee on Energy and Commerce',
-  },
-  {
-    id: '2',
-    name: 'Rep. Michael Chen',
-    state: 'New York',
-    district: 'NY-08',
-    party: 'Democratic',
-    email: 'michael.chen@congress.gov',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-    phone: '(202) 225-5678',
-    termStart: '2019-01-03',
-    committee: 'House Committee on Financial Services',
-  },
-  {
-    id: '3',
-    name: 'Rep. Emily Rodriguez',
-    state: 'Texas',
-    district: 'TX-29',
-    party: 'Democratic',
-    email: 'emily.rodriguez@congress.gov',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
-    phone: '(202) 225-9012',
-    termStart: '2023-01-03',
-    committee: 'House Committee on Education and Labor',
-  },
-  {
-    id: '4',
-    name: 'Rep. David Thompson',
-    state: 'Florida',
-    district: 'FL-27',
-    party: 'Republican',
-    email: 'david.thompson@congress.gov',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-    phone: '(202) 225-3456',
-    termStart: '2021-01-03',
-    committee: 'House Committee on Armed Services',
-  },
-];
-
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+
+  // Check for existing token on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        if (authService.isAuthenticated()) {
+          const { user } = await authService.getProfile();
+          dispatch({ type: 'SET_USER', payload: user });
+        } else {
+          dispatch({ type: 'SET_LOADING', payload: false });
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        authService.clearAuth();
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    };
+
+    checkAuth();
+  }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock authentication - in real app, this would be an API call
-    const congressman = mockCongressmen.find(c => c.email === email);
-    
-    if (congressman && password === 'password123') { // Mock password
-      dispatch({ type: 'LOGIN', payload: congressman });
+    try {
+      const { user } = await authService.login(email, password);
+      dispatch({ type: 'LOGIN', payload: user });
       return true;
+    } catch (error) {
+      console.error('Login failed:', error);
+      dispatch({ type: 'SET_LOADING', payload: false });
+      return false;
     }
-    
-    dispatch({ type: 'SET_LOADING', payload: false });
-    return false;
   };
 
-  const logout = () => {
+  const register = async (userData: {
+    email: string;
+    password: string;
+    name: string;
+    state?: string;
+    district?: string;
+    party?: string;
+    phone?: string;
+    committee?: string;
+  }): Promise<boolean> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    
+    try {
+      const { user } = await authService.register(userData);
+      dispatch({ type: 'LOGIN', payload: user });
+      return true;
+    } catch (error) {
+      console.error('Registration failed:', error);
+      dispatch({ type: 'SET_LOADING', payload: false });
+      return false;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
     dispatch({ type: 'LOGOUT' });
+  };
+
+  const updateProfile = async (profileData: {
+    name?: string;
+    state?: string;
+    district?: string;
+    party?: string;
+    phone?: string;
+    committee?: string;
+  }): Promise<boolean> => {
+    try {
+      const { user } = await authService.updateProfile(profileData);
+      dispatch({ type: 'SET_USER', payload: user });
+      return true;
+    } catch (error) {
+      console.error('Profile update failed:', error);
+      return false;
+    }
   };
 
   const value = {
     state,
     login,
+    register,
     logout,
+    updateProfile,
   };
 
   return (
