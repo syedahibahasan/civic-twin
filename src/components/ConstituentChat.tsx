@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, X, MessageCircle, User, Bot } from 'lucide-react';
 import { DigitalTwin, ChatMessage } from '../types';
+import { generateGroqConstituentResponse } from '../services/groqService';
 
 interface ConstituentChatProps {
   constituent: DigitalTwin;
@@ -80,11 +81,8 @@ const ConstituentChat: React.FC<ConstituentChatProps> = ({ constituent, isOpen, 
     setIsLoading(true);
 
     try {
-      // Generate response based on constituent's profile
-      const response = generateFallbackChatResponse(inputMessage, constituent);
-      
-      // Simulate typing delay for more realistic chat experience
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+      // Use Groq API for personality-driven responses
+      const response = await generateGroqConstituentResponse(inputMessage, constituent);
       
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
@@ -96,13 +94,17 @@ const ConstituentChat: React.FC<ConstituentChatProps> = ({ constituent, isOpen, 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error generating chat response:', error);
-      const errorMessage: ChatMessage = {
-        id: `error-${Date.now()}`,
+      // Fallback to basic response if Groq fails
+      const fallbackResponse = generateFallbackChatResponse(inputMessage, constituent);
+      
+      const assistantMessage: ChatMessage = {
+        id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: "I'm sorry, I'm having trouble responding right now. Please try again later.",
+        content: fallbackResponse,
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, errorMessage]);
+
+      setMessages(prev => [...prev, assistantMessage]);
     } finally {
       setIsLoading(false);
     }

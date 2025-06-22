@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, User, Bot } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { generateChatResponse } from '../services/aiService';
+import { generateGroqChatResponse } from '../services/groqService';
 import { DigitalTwin, ChatMessage } from '../types';
 
 interface ChatModalProps {
@@ -36,7 +36,7 @@ const ChatModal: React.FC<ChatModalProps> = ({ twin, onClose }) => {
         payload: { twinId: twin.id, message: initialMessage },
       });
     }
-  }, [twinMessages.length, twin.id, twin.name, dispatch]);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -61,7 +61,7 @@ const ChatModal: React.FC<ChatModalProps> = ({ twin, onClose }) => {
     setIsLoading(true);
 
     try {
-      const response = await generateChatResponse(message, twin, state.currentPolicy);
+      const response = await generateGroqChatResponse(message, twin, state.currentPolicy);
       
       const assistantMessage: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
