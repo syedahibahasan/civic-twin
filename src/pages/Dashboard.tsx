@@ -82,11 +82,6 @@ const Dashboard: React.FC = () => {
         {/* User Profile Section */}
         <div className="p-6 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center space-x-3">
-            <img
-              src={state.user.avatar}
-              alt={state.user.name}
-              className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
-            />
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-semibold text-gray-900 truncate">{state.user.name}</h3>
               <p className="text-xs text-gray-500 truncate">{state.user.district}</p>
@@ -309,11 +304,6 @@ const DashboardHome: React.FC = () => {
       {/* Welcome Section */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
         <div className="flex items-center space-x-6">
-          <img
-            src={state.user.avatar}
-            alt={state.user.name}
-            className="w-20 h-20 rounded-full object-cover border-4 border-gray-100 shadow-sm"
-          />
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Welcome back, {state.user.name}!</h1>
             <p className="text-lg text-gray-600 mt-2">Ready to analyze policy impact on your constituents?</p>
