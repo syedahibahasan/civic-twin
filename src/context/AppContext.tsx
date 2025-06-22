@@ -7,7 +7,7 @@ interface AppState {
   digitalTwins: DigitalTwin[];
   chatMessages: { [twinId: string]: ChatMessage[] };
   suggestions: PolicySuggestion[];
-  currentZipCode: string;
+  currentDistrict: string;
   isLoading: boolean;
 }
 
@@ -17,7 +17,7 @@ type AppAction =
   | { type: 'SET_DIGITAL_TWINS'; payload: DigitalTwin[] }
   | { type: 'ADD_CHAT_MESSAGE'; payload: { twinId: string; message: ChatMessage } }
   | { type: 'SET_SUGGESTIONS'; payload: PolicySuggestion[] }
-  | { type: 'SET_ZIP_CODE'; payload: string }
+  | { type: 'SET_DISTRICT'; payload: string }
   | { type: 'SET_LOADING'; payload: boolean };
 
 const initialState: AppState = {
@@ -26,7 +26,7 @@ const initialState: AppState = {
   digitalTwins: [],
   chatMessages: {},
   suggestions: [],
-  currentZipCode: '94110',
+  currentDistrict: '',
   isLoading: false,
 };
 
@@ -51,8 +51,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
     case 'SET_SUGGESTIONS':
       return { ...state, suggestions: action.payload };
-    case 'SET_ZIP_CODE':
-      return { ...state, currentZipCode: action.payload };
+    case 'SET_DISTRICT':
+      return { ...state, currentDistrict: action.payload };
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     default:

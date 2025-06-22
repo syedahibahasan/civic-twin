@@ -86,20 +86,43 @@ Format your response exactly like this:
 
 Be thorough but concise. Use data when available. Make complex policy accessible to non-experts.`;
 
-  const userPrompt = `Analyze this policy document for ${congressman ? `${congressman.name} (${congressman.district}, ${congressman.state})` : 'CA-12 (San Francisco)'}:
+  const userPrompt = `Analyze this policy document for ${congressman ? `${congressman.name} (${congressman.district}, ${congressman.state})` : 'your district'}:
 
 ${content}
 
-${censusData ? `District Demographics (ZIP ${censusData.zipCode}):
+${censusData ? `DETAILED DISTRICT DEMOGRAPHICS (${censusData.zipCode}):
 • Population: ${censusData.population.toLocaleString()}
 • Median Income: $${censusData.medianIncome.toLocaleString()}
 • Median Age: ${censusData.medianAge}
-• Education: ${censusData.educationLevels.bachelors}% Bachelor's, ${censusData.educationLevels.highSchool}% High School
-• Demographics: ${censusData.demographics.white}% White, ${censusData.demographics.hispanic}% Hispanic, ${censusData.demographics.asian}% Asian, ${censusData.demographics.black}% Black` : ''}
+• Poverty Rate: ${censusData.povertyRate || 'Not available'}%
+• Homeownership Rate: ${censusData.homeownershipRate || 'Not available'}%
+• College Education Rate: ${censusData.collegeRate || 'Not available'}%
 
-District Context: ${congressman ? `${congressman.district} (${congressman.state})` : 'CA-12 (San Francisco)'} is a diverse urban district with significant federal presence, tech industry, and strong commitment to diversity and inclusion programs.
+EDUCATION BREAKDOWN:
+• Bachelor's Degree: ${censusData.educationLevels.bachelors}%
+• High School Diploma: ${censusData.educationLevels.highSchool}%
+• Some College: ${censusData.educationLevels.someCollege}%
+• Less than High School: ${censusData.educationLevels.lessThanHighSchool}%
 
-Provide a comprehensive, professional analysis that makes the policy accessible and highlights district-specific implications.`;
+DEMOGRAPHIC COMPOSITION:
+• White: ${censusData.demographics.white}%
+• Hispanic: ${censusData.demographics.hispanic}%
+• Asian: ${censusData.demographics.asian}%
+• Black: ${censusData.demographics.black}%
+• Other: ${censusData.demographics.other}%
+
+OCCUPATION PATTERNS:
+${Object.entries(censusData.occupations).map(([occ, pct]) => `• ${occ}: ${pct}%`).join('\n')}
+
+INCOME DISTRIBUTION:
+${censusData.incomeDistribution ? Object.entries(censusData.incomeDistribution).map(([range, pct]) => `• ${range}: ${pct}%`).join('\n') : 'Income distribution data not available'}
+
+AGE DISTRIBUTION:
+${censusData.ageGroups ? Object.entries(censusData.ageGroups).map(([range, count]) => `• ${range}: ${count} people (${Math.round((count / censusData.population) * 100)}%)`).join('\n') : 'Age data not available'}` : ''}
+
+District Context: ${congressman ? `${congressman.district} (${congressman.state})` : 'your district'} is a diverse district with various community needs and priorities.
+
+Provide a comprehensive, professional analysis that makes the policy accessible and highlights district-specific implications based on the actual demographic and economic data provided.`;
 
   while (retryCount < maxRetries) {
     try {
@@ -429,50 +452,77 @@ ${constituentTypes.map(type => `• ${type}`).join('\n')}
 
 export async function generateDigitalTwins(censusData: CensusData, policy: Policy): Promise<DigitalTwin[]> {
   try {
-    const response = await callAnthropicAPI(`You are creating realistic digital twin constituents based on Census data for ZIP code ${censusData.zipCode}. Generate 4 diverse individuals with realistic demographics, occupations, and personal stories. Each twin should have a unique perspective on how the policy affects them.
+    const response = await callAnthropicAPI(`You are creating realistic digital twin constituents based on REAL Census data for Congressional District ${censusData.zipCode}. Generate 4 diverse individuals that ACCURATELY reflect the district's demographics, occupations, and economic characteristics.
 
-Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, `Create 4 digital twin constituents for ZIP code ${censusData.zipCode} based on this policy:\n\n${policy.summary}\n\nReturn a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, 1000);
+CRITICAL REQUIREMENTS FOR ACCURACY:
+1. Age distribution MUST match the Census age groups data exactly
+2. Racial/ethnic demographics MUST match the Census percentages
+3. Education levels MUST reflect the actual Census education data
+4. Income distribution MUST represent the FULL spectrum - from poverty level to high income
+5. Occupations MUST reflect the district's employment patterns
+6. Each constituent must have a UNIQUE personal story that fits their demographic profile
+
+NAMING REQUIREMENT:
+- Use EXACTLY "Constituent #1", "Constituent #2", "Constituent #3", "Constituent #4" for names
+- Do NOT generate real names, fictional names, or any other naming format
+
+CENSUS DATA TO USE:
+- Population: ${censusData.population.toLocaleString()}
+- Age Groups: ${censusData.ageGroups ? Object.entries(censusData.ageGroups).map(([range, count]) => `${range}: ${count} people`).join(', ') : 'Not available'}
+- Demographics: ${Object.entries(censusData.demographics).map(([demo, pct]) => `${demo}: ${pct}%`).join(', ')}
+- Education: ${Object.entries(censusData.educationLevels).map(([level, pct]) => `${level}: ${pct}%`).join(', ')}
+- Median Income: $${censusData.medianIncome.toLocaleString()}
+- Homeownership Rate: ${censusData.homeownershipRate || 'Not available'}%
+- Poverty Rate: ${censusData.povertyRate || 'Not available'}%
+- College Rate: ${censusData.collegeRate || 'Not available'}%
+- Occupations: ${Object.entries(censusData.occupations).map(([occ, pct]) => `${occ}: ${pct}%`).join(', ')}
+- Income Distribution: ${censusData.incomeDistribution ? Object.entries(censusData.incomeDistribution).map(([range, pct]) => `${range}: ${pct}%`).join(', ') : 'Not available'}
+
+Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, `Create 4 digital twin constituents for Congressional District ${censusData.zipCode} based on this policy:\n\n${policy.summary}\n\nIMPORTANT: Use "Constituent #1", "Constituent #2", "Constituent #3", "Constituent #4" for names. Do NOT generate real names.\n\nCENSUS DATA FOR ACCURATE GENERATION:\nPopulation: ${censusData.population.toLocaleString()}\nMedian Income: $${censusData.medianIncome.toLocaleString()}\nDemographics: ${Object.entries(censusData.demographics).map(([demo, pct]) => `${demo}: ${pct}%`).join(', ')}\nEducation: ${Object.entries(censusData.educationLevels).map(([level, pct]) => `${level}: ${pct}%`).join(', ')}\nOccupations: ${Object.entries(censusData.occupations).map(([occ, pct]) => `${occ}: ${pct}%`).join(', ')}\n\nReturn a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, 1000);
 
     if (response) {
       try {
-        const twins = JSON.parse(response) as DigitalTwin[];
+        // Clean the response to extract JSON if there's extra text
+        let cleanedResponse = response.trim();
+        
+        // Find the first [ and last ] to extract JSON
+        const startIndex = cleanedResponse.indexOf('[');
+        const endIndex = cleanedResponse.lastIndexOf(']');
+        
+        if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+          cleanedResponse = cleanedResponse.substring(startIndex, endIndex + 1);
+        }
+        
+        // Try to parse the cleaned response
+        const twins = JSON.parse(cleanedResponse) as DigitalTwin[];
+        
+        // Validate that we got an array
+        if (!Array.isArray(twins)) {
+          throw new Error('Response is not an array');
+        }
+        
         return twins.map((twin: DigitalTwin, index: number) => ({
           ...twin,
           id: `twin-${index + 1}`,
           zipCode: censusData.zipCode,
+          // Ensure demographics is a string
+          demographics: typeof twin.demographics === 'object' ? 
+            Object.values(twin.demographics).join(', ') : 
+            String(twin.demographics || 'Unknown'),
           policyImpact: 'To be determined based on policy analysis'
         }));
       } catch (parseError) {
         console.error('Error parsing twins response:', parseError);
         console.log('Raw response:', response);
-        return generateFallbackTwins(censusData);
+        return generateAccurateFallbackConstituents(censusData, 4);
       }
     }
     
-    return generateFallbackTwins(censusData);
+    return generateAccurateFallbackConstituents(censusData, 4);
   } catch (error) {
     console.error('Error generating digital twins:', error);
-    return generateFallbackTwins(censusData);
+    return generateAccurateFallbackConstituents(censusData, 4);
   }
-}
-
-function generateFallbackTwins(censusData: CensusData): DigitalTwin[] {
-  const names = ['Sarah Johnson', 'Michael Chen', 'Maria Rodriguez', 'David Thompson'];
-  const occupations = ['Teacher', 'Software Engineer', 'Nurse', 'Small Business Owner'];
-  const educations = ['Bachelor\'s Degree', 'Master\'s Degree', 'Associate\'s Degree', 'High School Diploma'];
-  
-  return names.map((name, index) => ({
-    id: `twin-${index + 1}`,
-    name,
-    age: Math.floor(Math.random() * 40) + 25,
-    education: educations[index],
-    annualIncome: Math.floor(Math.random() * 50000) + 30000,
-    occupation: occupations[index],
-    demographics: 'Mixed',
-    zipCode: censusData.zipCode,
-    personalStory: `${name} has lived in the district for ${Math.floor(Math.random() * 20) + 5} years and is concerned about local issues.`,
-    policyImpact: 'To be determined based on policy analysis'
-  }));
 }
 
 export async function generateChatResponse(
@@ -481,7 +531,13 @@ export async function generateChatResponse(
   policy: Policy
 ): Promise<string> {
   try {
-    const response = await callAnthropicAPI(`You are ${twin.name}, a ${twin.age}-year-old ${twin.occupation} from ZIP code ${twin.zipCode}. You have a ${twin.education} education and earn $${twin.annualIncome.toLocaleString()} annually. Your personal story: ${twin.personalStory}. Respond as this person would, discussing how the policy affects you personally. Keep responses conversational and under 100 words.`, `Policy: ${policy.summary}\n\nUser message: ${message}`, 200);
+    const response = await callAnthropicAPI(`You are ${twin.name}, a ${twin.age}-year-old ${twin.occupation} from Congressional District ${twin.zipCode}. You have a ${twin.education} education and earn $${twin.annualIncome.toLocaleString()} annually. Your personal story: ${twin.personalStory}. 
+
+Respond as this person would, discussing how the policy affects you personally. Keep responses conversational and under 100 words. Base your response on your specific demographic and economic circumstances.`, `Policy: ${policy.summary}
+
+User message: ${message}
+
+Remember: You are speaking as ${twin.name} from ${twin.zipCode} with your specific background and circumstances.`, 200);
 
     return response || 'I need to think about that for a moment.';
   } catch (error) {
@@ -495,7 +551,19 @@ export async function generatePolicySuggestions(
   policy: Policy
 ): Promise<PolicySuggestion[]> {
   try {
-    const response = await callAnthropicAPI("You are a policy analyst. Based on the digital twins' characteristics and the policy details, generate 4 specific, actionable suggestions to improve the policy. Focus on addressing potential concerns that constituents with these demographics and circumstances might have.", `Policy: ${policy.summary}\n\nDigital Twins Characteristics:\n${twins.map(twin => `- ${twin.name}: ${twin.age} years old, ${twin.occupation}, ${twin.education}, $${twin.annualIncome.toLocaleString()}/year, ${twin.demographics}. Story: ${twin.personalStory}`).join('\n')}\n\nGenerate 4 policy improvement suggestions. Return as JSON array with objects containing: id, title, description, impactedPopulation, severity (high/medium/low)`, 800);
+    // Get census data from the first twin's zipCode (they should all be the same)
+    const district = twins[0]?.zipCode;
+    
+    const response = await callAnthropicAPI(`You are a policy analyst specializing in district-specific policy recommendations. Based on the digital twins' characteristics, the policy details, and the district's Census data, generate 4 specific, actionable suggestions to improve the policy. Focus on addressing potential concerns that constituents with these demographics and circumstances might have.
+
+IMPORTANT: Your suggestions should be grounded in the actual district data provided, not generic recommendations.`, `Policy: ${policy.summary}
+
+Digital Twins Characteristics:
+${twins.map(twin => `- ${twin.name}: ${twin.age} years old, ${twin.occupation}, ${twin.education}, $${twin.annualIncome.toLocaleString()}/year, ${twin.demographics}. Story: ${twin.personalStory}`).join('\n')}
+
+District Context: ${district}
+
+Generate 4 policy improvement suggestions that are specifically tailored to this district's demographics and the digital twins' characteristics. Return as JSON array with objects containing: id, title, description, impactedPopulation, severity (high/medium/low)`, 800);
 
     if (response) {
       try {
@@ -563,6 +631,11 @@ CRITICAL REQUIREMENTS FOR ACCURACY:
 5. Occupations MUST reflect the district's employment patterns
 6. Each constituent must have a UNIQUE personal story that fits their demographic profile
 
+NAMING REQUIREMENT:
+- Use EXACTLY "Constituent #1", "Constituent #2", "Constituent #3", etc. for names
+- Do NOT generate real names, fictional names, or any other naming format
+- This is a strict requirement for privacy and consistency
+
 INCOME DISTRIBUTION REQUIREMENTS:
 - If poverty rate is ${censusData.povertyRate || 'unknown'}%, then ${censusData.povertyRate || 0}% of constituents should have incomes below poverty level
 - Income range should span from $15,000 (minimum wage) to $200,000+ (high income)
@@ -616,7 +689,10 @@ REQUIREMENTS:
 4. Create realistic personal stories that reflect the district's characteristics
 5. Ensure the overall group represents the district's diversity without being rigid
 
-Use "Constituent #1", "Constituent #2", etc. for names.
+NAMING REQUIREMENT:
+- Use EXACTLY "Constituent #1", "Constituent #2", "Constituent #3", etc. for names
+- Do NOT generate real names, fictional names, or any other naming format
+- This is a strict requirement for privacy and consistency
 
 CRITICAL: Return ONLY a valid JSON array. No markdown, no explanations, no other text. Just the JSON array starting with [ and ending with ].`, 3000);
 
@@ -646,6 +722,10 @@ CRITICAL: Return ONLY a valid JSON array. No markdown, no explanations, no other
           id: `constituent-${index + 1}`,
           name: `Constituent #${index + 1}`,
           zipCode: censusData.zipCode, // This is now the district identifier
+          // Ensure demographics is a string
+          demographics: typeof twin.demographics === 'object' ? 
+            Object.values(twin.demographics).join(', ') : 
+            String(twin.demographics || 'Unknown'),
           policyImpact: 'To be determined based on policy analysis'
         }));
       } catch (parseError) {

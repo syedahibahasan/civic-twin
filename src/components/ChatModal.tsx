@@ -89,8 +89,14 @@ const ChatModal: React.FC<ChatModalProps> = ({ twin, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl w-full max-w-2xl h-96 flex flex-col">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-xl w-full max-w-2xl h-96 flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <div className="flex items-center space-x-3">
@@ -105,6 +111,7 @@ const ChatModal: React.FC<ChatModalProps> = ({ twin, onClose }) => {
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Close chat"
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
@@ -168,6 +175,7 @@ const ChatModal: React.FC<ChatModalProps> = ({ twin, onClose }) => {
               onClick={handleSendMessage}
               disabled={!message.trim() || isLoading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Send message"
             >
               <Send className="h-4 w-4" />
             </button>

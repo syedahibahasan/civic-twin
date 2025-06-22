@@ -21,6 +21,7 @@ import {
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
 import { useAuth } from '../context/AuthContext';
+import { useAppContext } from '../context/AppContext';
 import useConstituents from '../hooks/useConstituents';
 import UploadPage from './Upload';
 import Profile from './Profile';
@@ -31,8 +32,16 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 
 const Dashboard: React.FC = () => {
   const { state, logout } = useAuth();
+  const { dispatch } = useAppContext();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Set the current district from the authenticated user
+  React.useEffect(() => {
+    if (state.user?.district) {
+      dispatch({ type: 'SET_DISTRICT', payload: state.user.district });
+    }
+  }, [state.user?.district, dispatch]);
 
   const handleLogout = () => {
     logout();

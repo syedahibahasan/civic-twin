@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, X, MessageCircle, User, Bot } from 'lucide-react';
+import { Send, X, User } from 'lucide-react';
 import { DigitalTwin, ChatMessage } from '../types';
 import { generateGroqConstituentResponse } from '../services/groqService';
 
@@ -120,8 +120,14 @@ const ConstituentChat: React.FC<ConstituentChatProps> = ({ constituent, isOpen, 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl h-[600px] flex flex-col">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-xl w-full max-w-2xl h-[600px] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-3">
@@ -136,6 +142,7 @@ const ConstituentChat: React.FC<ConstituentChatProps> = ({ constituent, isOpen, 
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Close chat"
           >
             <X className="h-5 w-5" />
           </button>
@@ -195,6 +202,7 @@ const ConstituentChat: React.FC<ConstituentChatProps> = ({ constituent, isOpen, 
               onClick={handleSendMessage}
               disabled={!inputMessage.trim() || isLoading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              aria-label="Send message"
             >
               <Send className="h-4 w-4" />
             </button>
