@@ -27,9 +27,12 @@ export function useConstituents(count: number = 10): UseConstituentsReturn {
     setError(null);
 
     try {
+      console.log(`Fetching constituents for district: ${state.user.district}`);
       const data = await constituentService.getConstituents(state.user.district, count);
+      console.log(`Successfully fetched ${data.length} constituents`);
       setConstituents(data);
     } catch (err) {
+      console.error('Error fetching constituents:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch constituents');
     } finally {
       setIsLoading(false);

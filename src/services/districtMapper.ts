@@ -2,12 +2,36 @@
 // This service provides ZIP code to congressional district mappings
 
 import congressionalDistricts from 'congressional-districts';
+import fs from 'fs';
+import path from 'path';
+import csvParse from 'csv-parse/sync';
 
 interface DistrictMapping {
   zipCode: string;
   state: string;
   district: string;
   districtNumber: number;
+}
+
+const ZCCD_PATH = path.resolve(__dirname, '../data/zccd.csv');
+
+interface ZipDistrictRow {
+  state_fips: string;
+  state_abbr: string;
+  zcta: string;
+  cd: string;
+}
+
+// Load and parse the CSV once at startup
+let zipDistrictRows: ZipDistrictRow[] = [];
+try {
+  const csvData = fs.readFileSync(ZCCD_PATH, 'utf8');
+  zipDistrictRows = csvParse.parse(csvData, {
+    columns: true,
+    skip_empty_lines: true,
+  });
+} catch (e) {
+  console.error('Failed to load zccd.csv:', e);
 }
 
 class DistrictMapper {
@@ -79,10 +103,13 @@ class DistrictMapper {
    * Get ZIP codes for a district string (e.g., "CA-12")
    */
   async getZipCodesForDistrictString(districtString: string): Promise<string[]> {
-    const parsed = this.parseDistrictString(districtString);
-    if (!parsed) return [];
-
-    return this.getZipCodesForDistrict(parsed.state, parsed.districtNumber);
+    const match = districtString.match(/^([A-Z]{2})-(\d{1,2})$/);
+    if (!match) return [];
+    const state = match[1];
+    const cd = match[2].replace(/^0+/, ''); // Remove leading zeros
+    return zipDistrictRows
+      .filter(row => row.state_abbr === state && row.cd === cd)
+      .map(row => row.zcta);
   }
 
   /**

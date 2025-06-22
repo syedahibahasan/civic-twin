@@ -1,16 +1,8 @@
 import { CensusData, DigitalTwin } from '../types';
+import { generateConstituentsFromCensusData } from './aiService';
 
-// District to ZIP code mappings (simplified - in production you'd use a more comprehensive mapping)
-const DISTRICT_ZIP_MAPPINGS: Record<string, string[]> = {
-  'CA-12': ['94102', '94103', '94104', '94105', '94107', '94108', '94109', '94110', '94111', '94112'],
-  'NY-08': ['11201', '11205', '11206', '11211', '11216', '11217', '11221', '11222', '11225', '11226'],
-  'TX-29': ['77001', '77002', '77003', '77004', '77005', '77006', '77007', '77008', '77009', '77010'],
-  'FL-27': ['33101', '33102', '33109', '33125', '33126', '33127', '33128', '33129', '33130', '33131'],
-  'CA-14': ['94010', '94011', '94012', '94013', '94014', '94015', '94016', '94017', '94018', '94019'],
-  'NY-12': ['10001', '10002', '10003', '10004', '10005', '10006', '10007', '10008', '10009', '10010'],
-  'TX-07': ['77001', '77002', '77003', '77004', '77005', '77006', '77007', '77008', '77009', '77010'],
-  'FL-25': ['33101', '33102', '33109', '33125', '33126', '33127', '33128', '33129', '33130', '33131'],
-};
+// Free Census Bureau API - no credentials required
+const CENSUS_API_BASE = 'https://api.census.gov/data/2021/acs/acs5';
 
 // Occupation categories with realistic distributions
 const OCCUPATIONS = {
@@ -20,14 +12,114 @@ const OCCUPATIONS = {
   'Business': ['Manager', 'Accountant', 'Sales Representative', 'Marketing Specialist', 'HR Manager'],
   'Service': ['Restaurant Manager', 'Retail Supervisor', 'Customer Service Rep', 'Hotel Manager', 'Chef'],
   'Construction': ['Construction Manager', 'Electrician', 'Plumber', 'Carpenter', 'Architect'],
-  'Government': ['Government Employee', 'Police Officer', 'Firefighter', 'Postal Worker', 'Administrative Assistant'],
-  'Finance': ['Financial Advisor', 'Bank Teller', 'Insurance Agent', 'Loan Officer', 'Accountant'],
+  'Government': ['Government Employee', 'Police Officer', 'Firefighter', 'Postal Worker', 'Administrator'],
+  'Transportation': ['Truck Driver', 'Bus Driver', 'Delivery Driver', 'Pilot', 'Train Conductor'],
+  'Manufacturing': ['Factory Worker', 'Machine Operator', 'Quality Control', 'Production Manager', 'Technician'],
+  'Retail': ['Sales Associate', 'Store Manager', 'Cashier', 'Customer Service', 'Inventory Specialist']
 };
+
+// Real Census API call function using @peoplefinders/census
+async function fetchRealCensusData(zipCode: string): Promise<CensusData | null> {
+  try {
+    // Use the free Census Bureau ACS API - no credentials required
+    // B01003_001E = Total population
+    // B03002_003E = White alone
+    // B03002_004E = Black or African American alone
+    // B03002_005E = American Indian and Alaska Native alone
+    // B03002_006E = Asian alone
+    // B03002_007E = Native Hawaiian and Other Pacific Islander alone
+    // B03002_012E = Hispanic or Latino
+    // B19013_001E = Median household income
+    // B15003_022E = Bachelor's degree
+    // B15003_023E = Master's degree
+    // B15003_024E = Professional school degree
+    // B15003_025E = Doctorate degree
+    const url = `${CENSUS_API_BASE}?get=B01003_001E,B03002_003E,B03002_004E,B03002_005E,B03002_006E,B03002_007E,B03002_012E,B19013_001E,B15003_022E,B15003_023E,B15003_024E,B15003_025E&for=zip%20code%20tabulation%20area:${zipCode}`;
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.warn(`Failed to fetch census data for ZIP ${zipCode}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (!data || data.length < 2) {
+      console.warn(`No data returned for ZIP ${zipCode}`);
+      return null;
+    }
+
+    // Parse the Census data (first row is headers, second row is data)
+    const row = data[1];
+    console.log(`Raw Census data for ZIP ${zipCode}:`, row);
+    
+    const totalPopulation = parseInt(row[0]) || 0;
+    const white = parseInt(row[1]) || 0;
+    const black = parseInt(row[2]) || 0;
+    const nativeAmerican = parseInt(row[3]) || 0;
+    const asian = parseInt(row[4]) || 0;
+    const pacificIslander = parseInt(row[5]) || 0;
+    const hispanic = parseInt(row[6]) || 0;
+    const rawMedianIncome = parseInt(row[7]) || 50000;
+    const medianIncome = Math.max(30000, rawMedianIncome); // Ensure minimum $30k
+    
+    console.log(`Parsed median income for ZIP ${zipCode}: raw=${rawMedianIncome}, final=${medianIncome}`);
+    
+    // Education data
+    const bachelors = parseInt(row[8]) || 0;
+    const masters = parseInt(row[9]) || 0;
+    const professional = parseInt(row[10]) || 0;
+    const doctorate = parseInt(row[11]) || 0;
+    const graduateTotal = bachelors + masters + professional + doctorate;
+    
+    // Calculate other races (total - sum of specific races)
+    const other = totalPopulation - white - black - nativeAmerican - asian - pacificIslander;
+
+    // Calculate median age (simplified - would need separate API call for accurate numbers)
+    const medianAge = 35; // Default estimate
+
+    const result: CensusData = {
+      zipCode,
+      population: totalPopulation,
+      medianIncome,
+      medianAge: Math.floor(medianAge),
+      educationLevels: {
+        lessThanHighSchool: Math.floor(totalPopulation * 0.08),
+        highSchool: Math.floor(totalPopulation * 0.25),
+        someCollege: Math.floor(totalPopulation * 0.20),
+        bachelors: Math.floor(graduateTotal * 0.6), // Estimate from total graduate degrees
+        graduate: Math.floor(graduateTotal * 0.4), // Estimate from total graduate degrees
+      },
+      demographics: {
+        white: Math.floor((white / totalPopulation) * 100),
+        black: Math.floor((black / totalPopulation) * 100),
+        hispanic: Math.floor((hispanic / totalPopulation) * 100),
+        asian: Math.floor((asian / totalPopulation) * 100),
+        other: Math.floor((other / totalPopulation) * 100),
+      },
+    };
+
+    return result;
+  } catch (error) {
+    console.error('Error fetching real census data:', error);
+    return null;
+  }
+}
 
 export async function fetchCensusData(zipCode: string): Promise<CensusData> {
   try {
-    // In a real implementation, we'd make actual API calls
-    // For now, we'll return mock data based on the ZIP code
+    // Try to fetch real Census data first
+    const realData = await fetchRealCensusData(zipCode);
+    
+    if (realData) {
+      console.log(`Successfully fetched real Census data for ZIP ${zipCode}`);
+      return realData;
+    }
+
+    // Fallback to mock data if real data fails
+    console.log(`Using mock data for ZIP ${zipCode} (real data unavailable)`);
+    
     const mockData: CensusData = {
       zipCode,
       population: Math.floor(Math.random() * 50000) + 20000,
@@ -50,7 +142,7 @@ export async function fetchCensusData(zipCode: string): Promise<CensusData> {
     };
 
     // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     return mockData;
   } catch (error) {
@@ -61,17 +153,34 @@ export async function fetchCensusData(zipCode: string): Promise<CensusData> {
 
 export async function fetchDistrictData(district: string): Promise<CensusData[]> {
   try {
-    const zipCodes = DISTRICT_ZIP_MAPPINGS[district] || [];
+    // Parse district string (e.g., "CA-12") to state and district number
+    const match = district.match(/^([A-Z]{2})-(\d+)$/);
+    if (!match) {
+      console.warn(`Invalid district format: ${district}`);
+      return [];
+    }
+    
+    // Get ZIP codes for the district using the backend API
+    const response = await fetch(`/api/districts/zipcodes/${district}`);
+    
+    if (!response.ok) {
+      console.warn(`Failed to get ZIP codes for district ${district}: ${response.status}`);
+      return [];
+    }
+    
+    const data = await response.json();
+    const zipCodes = data.zipCodes || [];
     
     if (zipCodes.length === 0) {
-      // If district not found, generate some default ZIP codes
-      const defaultZips = ['10001', '20001', '30001', '40001', '50001'];
-      return Promise.all(defaultZips.map(zip => fetchCensusData(zip)));
+      console.warn(`No ZIP codes found for district ${district}`);
+      return [];
     }
+
+    console.log(`Found ${zipCodes.length} ZIP codes for district ${district}`);
 
     // Fetch data for all ZIP codes in the district
     const districtData = await Promise.all(
-      zipCodes.map(zip => fetchCensusData(zip))
+      zipCodes.map((zip: string) => fetchCensusData(zip))
     );
 
     return districtData;
@@ -81,10 +190,36 @@ export async function fetchDistrictData(district: string): Promise<CensusData[]>
   }
 }
 
-export function generateConstituentProfiles(districtData: CensusData[], count: number = 10): DigitalTwin[] {
+export async function generateConstituentProfiles(districtData: CensusData[], count: number = 10): Promise<DigitalTwin[]> {
+  try {
+    // Use the AI service to generate realistic constituents based on Census data
+    // We'll use the first ZIP code's data as representative for the district
+    const representativeData = districtData[0];
+    
+    if (!representativeData) {
+      console.warn('No Census data available for constituent generation');
+      return [];
+    }
+    
+    console.log(`Generating ${count} constituents using AI for ZIP ${representativeData.zipCode}`);
+    
+    // Use the AI service to generate realistic constituents
+    const constituents = await generateConstituentsFromCensusData(representativeData, count);
+    
+    console.log(`Successfully generated ${constituents.length} constituents using AI`);
+    return constituents;
+    
+  } catch (error) {
+    console.error('Error generating constituent profiles with AI:', error);
+    
+    // Fallback to simple generation if AI fails
+    console.log('Falling back to simple constituent generation');
+    return generateSimpleConstituents(districtData, count);
+  }
+}
+
+function generateSimpleConstituents(districtData: CensusData[], count: number = 10): DigitalTwin[] {
   const constituents: DigitalTwin[] = [];
-  
-  // Generate names based on demographics
   const names = generateNamesFromDemographics();
   
   for (let i = 0; i < count; i++) {
@@ -97,8 +232,9 @@ export function generateConstituentProfiles(districtData: CensusData[], count: n
     )));
     
     // Generate income based on median income with realistic distribution
+    const medianIncome = Math.max(30000, randomZip.medianIncome || 50000);
     const incomeMultiplier = 0.5 + Math.random() * 2; // 0.5x to 2.5x median
-    const annualIncome = Math.floor(randomZip.medianIncome * incomeMultiplier);
+    const annualIncome = Math.floor(medianIncome * incomeMultiplier);
     
     // Select education level based on district demographics
     const education = selectEducationLevel(randomZip.educationLevels);
@@ -129,20 +265,11 @@ export function generateConstituentProfiles(districtData: CensusData[], count: n
 }
 
 function generateNamesFromDemographics(): string[] {
-  // This would be more sophisticated in production
-  // For now, we'll use a diverse set of names
-  const names = [
-    'Maria Rodriguez', 'James Johnson', 'Sarah Chen', 'Michael Thompson',
-    'Emily Davis', 'David Wilson', 'Lisa Anderson', 'Robert Martinez',
-    'Jennifer Garcia', 'Christopher Lee', 'Amanda White', 'Daniel Brown',
-    'Jessica Taylor', 'Matthew Miller', 'Ashley Moore', 'Joshua Jackson',
-    'Stephanie Martin', 'Andrew Lee', 'Nicole Garcia', 'Kevin Rodriguez',
-    'Rachel Martinez', 'Ryan Anderson', 'Lauren Thompson', 'Brandon White',
-    'Megan Johnson', 'Tyler Davis', 'Kayla Wilson', 'Jordan Brown',
-    'Samantha Taylor', 'Cody Miller', 'Brittany Moore', 'Dustin Jackson',
-    'Heather Martin', 'Travis Lee', 'Amber Garcia', 'Corey Rodriguez'
-  ];
-  
+  // Generate anonymized constituent names
+  const names = [];
+  for (let i = 1; i <= 20; i++) {
+    names.push(`Constituent #${i}`);
+  }
   return names;
 }
 

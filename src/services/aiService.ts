@@ -1,4 +1,4 @@
-import { Policy, DigitalTwin, ChatMessage, PolicySuggestion, CensusData, Congressman } from '../types';
+import { Policy, DigitalTwin, PolicySuggestion, CensusData, Congressman } from '../types';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -147,10 +147,6 @@ function generateStructuredFallbackSummary(content: string, congressman?: Congre
   const percentMatches = content.match(/\d+(?:\.\d+)?%/g);
   const percentages = percentMatches ? percentMatches.slice(0, 3) : [];
   
-  // Look for dates
-  const dateMatches = content.match(/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/g);
-  const dates = dateMatches ? dateMatches.slice(0, 2) : [];
-  
   // Check if content seems like policy text
   const hasPolicyKeywords = foundKeywords.length > 0;
   const hasNumbers = /\d/.test(content);
@@ -293,8 +289,8 @@ export async function generateDigitalTwins(censusData: CensusData, policy: Polic
     const response = completion.choices[0]?.message?.content;
     if (response) {
       try {
-        const twins = JSON.parse(response);
-        return twins.map((twin: any, index: number) => ({
+        const twins = JSON.parse(response) as DigitalTwin[];
+        return twins.map((twin: DigitalTwin, index: number) => ({
           ...twin,
           id: `twin-${index + 1}`,
           zipCode: censusData.zipCode,
@@ -313,7 +309,7 @@ export async function generateDigitalTwins(censusData: CensusData, policy: Polic
 }
 
 function generateFallbackTwins(censusData: CensusData): DigitalTwin[] {
-  const names = ['Maria Rodriguez', 'John Thompson', 'Linda Chen', 'David Williams'];
+  const names = ['Constituent #1', 'Constituent #2', 'Constituent #3', 'Constituent #4'];
   const occupations = ['Student', 'Retail Worker', 'Teacher', 'Nurse'];
   const educationLevels = ['High School', 'Some College', "Bachelor's Degree", "Associate's Degree"];
   
@@ -326,7 +322,7 @@ function generateFallbackTwins(censusData: CensusData): DigitalTwin[] {
     occupation: occupations[Math.floor(Math.random() * occupations.length)],
     demographics: Math.random() > 0.5 ? 'Hispanic/Latino' : 'White',
     zipCode: censusData.zipCode,
-    personalStory: `I'm ${name.split(' ')[0]}, a ${Math.floor(Math.random() * 30) + 20}-year-old living in ${censusData.zipCode}. I work part-time while pursuing my education and depend on financial aid to make ends meet.`,
+    personalStory: `I'm ${name}, a ${Math.floor(Math.random() * 30) + 20}-year-old living in ${censusData.zipCode}. I work part-time while pursuing my education and depend on financial aid to make ends meet.`,
     policyImpact: index % 2 === 0 
       ? 'This policy would significantly reduce my financial aid eligibility, making it harder for me to continue my education.'
       : 'While this policy might provide new opportunities through work-study programs, the increased credit requirements could be challenging to meet.',
@@ -386,8 +382,8 @@ export async function generatePolicySuggestions(
     const response = completion.choices[0]?.message?.content;
     if (response) {
       try {
-        const suggestions = JSON.parse(response);
-        return suggestions.map((suggestion: any, index: number) => ({
+        const suggestions = JSON.parse(response) as PolicySuggestion[];
+        return suggestions.map((suggestion: PolicySuggestion, index: number) => ({
           ...suggestion,
           id: `suggestion-${index + 1}`,
         }));
@@ -435,4 +431,204 @@ function generateFallbackSuggestions(): PolicySuggestion[] {
       severity: 'low',
     },
   ];
+}
+
+export async function generateConstituentsFromCensusData(censusData: CensusData, count: number = 10): Promise<DigitalTwin[]> {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: `You are creating realistic digital twin constituents based on Census data for ZIP code ${censusData.zipCode}. Generate ${count} diverse individuals with realistic demographics, occupations, and personal stories that match the Census data.
+
+IMPORTANT: Ensure that:
+1. Education levels match realistic career paths
+2. Income levels are appropriate for the education and occupation
+3. Occupations are realistic for the education level and income
+4. Demographics reflect the actual Census data
+5. Ages are realistic for the occupation and education level
+6. Use "Constituent #X" format for names (e.g., "Constituent #1", "Constituent #2")
+
+Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`
+        },
+        {
+          role: "user",
+          content: `Create ${count} realistic digital twin constituents for ZIP code ${censusData.zipCode} based on this Census data:
+
+Population: ${censusData.population.toLocaleString()}
+Median Income: $${censusData.medianIncome.toLocaleString()}
+Median Age: ${censusData.medianAge}
+
+Education Levels:
+- Less than High School: ${censusData.educationLevels.lessThanHighSchool}%
+- High School: ${censusData.educationLevels.highSchool}%
+- Some College: ${censusData.educationLevels.someCollege}%
+- Bachelor's Degree: ${censusData.educationLevels.bachelors}%
+- Graduate Degree: ${censusData.educationLevels.graduate}%
+
+Demographics:
+- White: ${censusData.demographics.white}%
+- Black: ${censusData.demographics.black}%
+- Hispanic: ${censusData.demographics.hispanic}%
+- Asian: ${censusData.demographics.asian}%
+- Other: ${censusData.demographics.other}%
+
+Generate realistic constituents that reflect this demographic and economic profile. Use "Constituent #1", "Constituent #2", etc. for names. Ensure education, occupation, and income are logically consistent.`
+        }
+      ],
+      max_tokens: 2000,
+      temperature: 0.7,
+    });
+
+    const response = completion.choices[0]?.message?.content;
+    if (response) {
+      try {
+        const twins = JSON.parse(response) as DigitalTwin[];
+        return twins.map((twin: DigitalTwin, index: number) => ({
+          ...twin,
+          id: `constituent-${index + 1}`,
+          name: `Constituent #${index + 1}`,
+          zipCode: censusData.zipCode,
+          policyImpact: 'To be determined based on policy analysis'
+        }));
+      } catch (parseError) {
+        console.error('Error parsing constituents response:', parseError);
+        console.log('Raw response:', response);
+        return generateFallbackConstituents(censusData, count);
+      }
+    }
+    
+    return generateFallbackConstituents(censusData, count);
+  } catch (error) {
+    console.error('Error generating constituents from Census data:', error);
+    return generateFallbackConstituents(censusData, count);
+  }
+}
+
+function generateFallbackConstituents(censusData: CensusData, count: number): DigitalTwin[] {
+  const constituents: DigitalTwin[] = [];
+  
+  for (let i = 0; i < count; i++) {
+    const name = `Constituent #${i + 1}`;
+    const age = Math.floor(Math.max(18, Math.min(85, 
+      censusData.medianAge + (Math.random() - 0.5) * 30
+    )));
+    
+    // Generate realistic income based on median
+    const incomeMultiplier = 0.5 + Math.random() * 2; // 0.5x to 2.5x median
+    const annualIncome = Math.floor(Math.max(30000, censusData.medianIncome * incomeMultiplier));
+    
+    // Select education based on Census data
+    const education = selectEducationFromCensus(censusData.educationLevels);
+    
+    // Select occupation based on education and income
+    const occupation = selectRealisticOccupation(education, annualIncome);
+    
+    // Select demographics based on Census data
+    const demographics = selectDemographicsFromCensus(censusData.demographics);
+    
+    constituents.push({
+      id: `constituent-${i + 1}`,
+      name,
+      age,
+      education,
+      annualIncome,
+      occupation,
+      demographics,
+      zipCode: censusData.zipCode,
+      personalStory: generatePersonalStory(name, age, education, occupation, annualIncome, demographics),
+      policyImpact: 'To be determined based on policy analysis'
+    });
+  }
+  
+  return constituents;
+}
+
+function selectEducationFromCensus(educationLevels: CensusData['educationLevels']): string {
+  const total = Object.values(educationLevels).reduce((sum, val) => sum + val, 0);
+  const random = Math.random() * total;
+  
+  let cumulative = 0;
+  
+  if (random < (cumulative += educationLevels.lessThanHighSchool)) {
+    return 'High School Diploma';
+  }
+  if (random < (cumulative += educationLevels.highSchool)) {
+    return 'High School Diploma';
+  }
+  if (random < (cumulative += educationLevels.someCollege)) {
+    return 'Some College';
+  }
+  if (random < (cumulative += educationLevels.bachelors)) {
+    return 'Bachelor\'s Degree';
+  }
+  return 'Master\'s Degree';
+}
+
+function selectRealisticOccupation(education: string, income: number): string {
+  // More realistic occupation selection based on education and income
+  if (education.includes('Master') || education.includes('Doctorate')) {
+    if (income > 100000) return 'Software Engineer';
+    if (income > 80000) return 'Data Scientist';
+    if (income > 60000) return 'Teacher';
+    return 'Research Analyst';
+  } else if (education.includes('Bachelor')) {
+    if (income > 80000) return 'Marketing Manager';
+    if (income > 60000) return 'Accountant';
+    if (income > 45000) return 'Administrative Assistant';
+    return 'Customer Service Representative';
+  } else if (education.includes('Some College')) {
+    if (income > 50000) return 'Medical Assistant';
+    if (income > 40000) return 'Sales Representative';
+    return 'Retail Supervisor';
+  } else {
+    if (income > 45000) return 'Construction Worker';
+    if (income > 35000) return 'Truck Driver';
+    return 'Retail Associate';
+  }
+}
+
+function selectDemographicsFromCensus(demographics: CensusData['demographics']): string {
+  const total = Object.values(demographics).reduce((sum, val) => sum + val, 0);
+  const random = Math.random() * total;
+  
+  let cumulative = 0;
+  
+  if (random < (cumulative += demographics.white)) {
+    return 'White';
+  }
+  if (random < (cumulative += demographics.black)) {
+    return 'Black';
+  }
+  if (random < (cumulative += demographics.hispanic)) {
+    return 'Hispanic';
+  }
+  if (random < (cumulative += demographics.asian)) {
+    return 'Asian';
+  }
+  return 'Other';
+}
+
+function generatePersonalStory(
+  name: string, 
+  age: number, 
+  education: string, 
+  occupation: string, 
+  income: number, 
+  demographics: string
+): string {
+  const stories = [
+    `${name} is a ${age}-year-old ${occupation.toLowerCase()} with a ${education.toLowerCase()}. They've lived in the area for ${Math.floor(Math.random() * 20) + 5} years and are concerned about local economic development.`,
+    
+    `A ${demographics.toLowerCase()} resident, ${name} works as a ${occupation.toLowerCase()} and has a ${education.toLowerCase()}. They're passionate about education and healthcare access in their community.`,
+    
+    `${name}, ${age}, is a ${occupation.toLowerCase()} who recently completed their ${education.toLowerCase()}. They're focused on affordable housing and transportation issues in the district.`,
+    
+    `With ${Math.floor(Math.random() * 20) + 10} years of experience as a ${occupation.toLowerCase()}, ${name} has seen the district change significantly. They care about maintaining the community's character while supporting growth.`,
+    
+    `${name} is a ${age}-year-old ${occupation.toLowerCase()} with a ${education.toLowerCase()}. They're particularly concerned about environmental issues and sustainable development in the area.`
+  ];
+  
+  return stories[Math.floor(Math.random() * stories.length)];
 }
