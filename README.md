@@ -23,8 +23,8 @@ CivicTwin uses artificial intelligence and Census data to simulate how policies 
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/civictwin.git
-   cd civictwin
+   git clone https://github.com/syedahibahasan/civic-twin.git
+   cd civic-twin
    ```
 
 2. **Install dependencies**
@@ -134,4 +134,4 @@ For support, email support@civictwin.com or open an issue on GitHub.
 
 ---
 
-**Built with ❤️ for better policy making** 
+**Built with ❤️ for better policy making**
