@@ -344,7 +344,15 @@ class ConstituentService {
 
     const totalIncome = this.constituents.reduce((sum, c) => sum + c.annualIncome, 0);
     const avgIncome = totalIncome / this.constituents.length;
-    const avgAge = this.constituents.reduce((sum, c) => sum + c.age, 0) / this.constituents.length;
+    
+    // Fix average age calculation to handle edge cases
+    const validAges = this.constituents
+      .map(c => c.age)
+      .filter(age => typeof age === 'number' && !isNaN(age) && age > 0);
+    
+    const avgAge = validAges.length > 0 
+      ? validAges.reduce((sum, age) => sum + age, 0) / validAges.length 
+      : 0;
 
     const demographics = this.constituents.reduce((acc, c) => {
       acc[c.demographics] = (acc[c.demographics] || 0) + 1;
@@ -381,8 +389,8 @@ class ConstituentService {
         max: Math.max(...this.constituents.map(c => c.annualIncome))
       },
       ageRange: {
-        min: Math.min(...this.constituents.map(c => c.age)),
-        max: Math.max(...this.constituents.map(c => c.age))
+        min: validAges.length > 0 ? Math.min(...validAges) : 0,
+        max: validAges.length > 0 ? Math.max(...validAges) : 0
       }
     };
   }

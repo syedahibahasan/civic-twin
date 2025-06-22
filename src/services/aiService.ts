@@ -628,7 +628,24 @@ function generateRealisticAge(ageGroups?: CensusData['ageGroups']): number {
   for (const [range, count] of Object.entries(ageGroups)) {
     random -= count;
     if (random <= 0) {
-      const [min, max] = range.split('-').map(Number);
+      let min: number, max: number;
+      
+      if (range.includes('+')) {
+        // Handle "75+" case
+        min = parseInt(range.replace('+', ''));
+        max = min + 10; // Assume 10 year range for 75+
+      } else {
+        // Handle "18-24" case
+        const parts = range.split('-').map(Number);
+        min = parts[0];
+        max = parts[1];
+      }
+      
+      // Ensure we have valid numbers
+      if (isNaN(min) || isNaN(max)) {
+        return 35; // Fallback
+      }
+      
       return Math.floor(min + Math.random() * (max - min + 1));
     }
   }
