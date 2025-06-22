@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DigitalTwin } from '../types';
+import { DigitalTwin, CensusData } from '../types';
 import { useAuth } from '../context/AuthContext';
 import constituentService from '../services/constituentService';
 
@@ -9,6 +9,10 @@ interface UseConstituentsReturn {
   error: string | null;
   refresh: () => Promise<void>;
   stats: ReturnType<typeof constituentService.getConstituentStats>;
+  censusData: CensusData[];
+  totalPopulation: number;
+  censusDemographics: ReturnType<typeof constituentService.getCensusDemographics>;
+  censusOccupations: ReturnType<typeof constituentService.getCensusOccupations>;
 }
 
 export function useConstituents(count: number = 10): UseConstituentsReturn {
@@ -58,13 +62,21 @@ export function useConstituents(count: number = 10): UseConstituentsReturn {
   }, [state.user?.district, count]);
 
   const stats = constituentService.getConstituentStats();
+  const censusData = constituentService.getCensusData();
+  const totalPopulation = constituentService.getDistrictPopulation();
+  const censusDemographics = constituentService.getCensusDemographics();
+  const censusOccupations = constituentService.getCensusOccupations();
 
   return {
     constituents,
     isLoading,
     error,
     refresh,
-    stats
+    stats,
+    censusData,
+    totalPopulation,
+    censusDemographics,
+    censusOccupations
   };
 }
 

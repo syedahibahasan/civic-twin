@@ -38,6 +38,13 @@ export interface CensusData {
     asian: number;
     other: number;
   };
+  occupations: {
+    management: number;
+    service: number;
+    salesOffice: number;
+    construction: number;
+    production: number;
+  };
 }
 
 export interface DigitalTwin {

@@ -140,8 +140,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return true;
     } catch (error) {
       console.error('Registration failed:', error);
-      dispatch({ type: 'SET_LOADING', payload: false });
-      return false;
+    dispatch({ type: 'SET_LOADING', payload: false });
+    return false;
     }
   };
 

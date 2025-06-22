@@ -32,7 +32,7 @@ CivicTwin uses artificial intelligence and Census data to simulate how policies 
    ```bash
    # Install dependencies
    npm install
-   
+
    # Set up environment variables
    cp .env.example .env
    ```

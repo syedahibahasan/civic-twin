@@ -34,7 +34,14 @@ async function fetchRealCensusData(zipCode: string): Promise<CensusData | null> 
     // B15003_023E = Master's degree
     // B15003_024E = Professional school degree
     // B15003_025E = Doctorate degree
-    const url = `${CENSUS_API_BASE}?get=B01003_001E,B03002_003E,B03002_004E,B03002_005E,B03002_006E,B03002_007E,B03002_012E,B19013_001E,B15003_022E,B15003_023E,B15003_024E,B15003_025E&for=zip%20code%20tabulation%20area:${zipCode}`;
+    // Occupation data (C24010 series)
+    // B24010_001E = Total employed population
+    // B24010_002E = Management, business, science, and arts occupations
+    // B24010_003E = Service occupations
+    // B24010_004E = Sales and office occupations
+    // B24010_005E = Natural resources, construction, and maintenance occupations
+    // B24010_006E = Production, transportation, and material moving occupations
+    const url = `${CENSUS_API_BASE}?get=B01003_001E,B03002_003E,B03002_004E,B03002_005E,B03002_006E,B03002_007E,B03002_012E,B19013_001E,B15003_022E,B15003_023E,B15003_024E,B15003_025E,B24010_001E,B24010_002E,B24010_003E,B24010_004E,B24010_005E,B24010_006E&for=zip%20code%20tabulation%20area:${zipCode}`;
     
     const response = await fetch(url);
     
@@ -73,6 +80,14 @@ async function fetchRealCensusData(zipCode: string): Promise<CensusData | null> 
     const doctorate = parseInt(row[11]) || 0;
     const graduateTotal = bachelors + masters + professional + doctorate;
     
+    // Occupation data
+    const totalEmployed = parseInt(row[12]) || 0;
+    const management = parseInt(row[13]) || 0;
+    const service = parseInt(row[14]) || 0;
+    const salesOffice = parseInt(row[15]) || 0;
+    const construction = parseInt(row[16]) || 0;
+    const production = parseInt(row[17]) || 0;
+    
     // Calculate other races (total - sum of specific races)
     const other = totalPopulation - white - black - nativeAmerican - asian - pacificIslander;
 
@@ -98,6 +113,13 @@ async function fetchRealCensusData(zipCode: string): Promise<CensusData | null> 
         asian: Math.floor((asian / totalPopulation) * 100),
         other: Math.floor((other / totalPopulation) * 100),
       },
+      occupations: {
+        management: totalEmployed > 0 ? Math.floor((management / totalEmployed) * 100) : 0,
+        service: totalEmployed > 0 ? Math.floor((service / totalEmployed) * 100) : 0,
+        salesOffice: totalEmployed > 0 ? Math.floor((salesOffice / totalEmployed) * 100) : 0,
+        construction: totalEmployed > 0 ? Math.floor((construction / totalEmployed) * 100) : 0,
+        production: totalEmployed > 0 ? Math.floor((production / totalEmployed) * 100) : 0,
+      }
     };
 
     return result;
@@ -139,6 +161,13 @@ export async function fetchCensusData(zipCode: string): Promise<CensusData> {
         asian: Math.floor(Math.random() * 20) + 10,
         other: Math.floor(Math.random() * 10) + 5,
       },
+      occupations: {
+        management: Math.floor(Math.random() * 25) + 15,
+        service: Math.floor(Math.random() * 20) + 10,
+        salesOffice: Math.floor(Math.random() * 25) + 15,
+        construction: Math.floor(Math.random() * 15) + 5,
+        production: Math.floor(Math.random() * 15) + 5,
+      }
     };
 
     // Simulate API delay
@@ -153,6 +182,17 @@ export async function fetchCensusData(zipCode: string): Promise<CensusData> {
 
 export async function fetchDistrictData(district: string): Promise<CensusData[]> {
   try {
+    // Try to fetch district-level census data first (new approach)
+    const districtData = await fetchDistrictCensusData(district);
+    
+    if (districtData) {
+      console.log(`Successfully fetched district-level census data for ${district}`);
+      return [districtData]; // Return as array to maintain compatibility
+    }
+
+    // Fallback to ZIP code approach if district-level fails
+    console.log(`District-level data failed, falling back to ZIP code approach for ${district}`);
+    
     // Parse district string (e.g., "CA-12") to state and district number
     const match = district.match(/^([A-Z]{2})-(\d+)$/);
     if (!match) {
@@ -179,11 +219,11 @@ export async function fetchDistrictData(district: string): Promise<CensusData[]>
     console.log(`Found ${zipCodes.length} ZIP codes for district ${district}`);
 
     // Fetch data for all ZIP codes in the district
-    const districtData = await Promise.all(
+    const zipCodeData = await Promise.all(
       zipCodes.map((zip: string) => fetchCensusData(zip))
     );
 
-    return districtData;
+    return zipCodeData;
   } catch (error) {
     console.error('Error fetching district data:', error);
     throw new Error('Failed to fetch district data');
@@ -363,4 +403,109 @@ export async function getConstituentsForDistrict(district: string, count: number
     console.error('Error getting constituents for district:', error);
     throw new Error('Failed to get constituents for district');
   }
+}
+
+// New function to fetch district-level census data directly
+async function fetchDistrictCensusData(district: string): Promise<CensusData | null> {
+  try {
+    // Parse district string (e.g., "CA-12") to state and district number
+    const match = district.match(/^([A-Z]{2})-(\d+)$/);
+    if (!match) {
+      console.warn(`Invalid district format: ${district}`);
+      return null;
+    }
+    
+    const state = match[1];
+    const cd = match[2].replace(/^0+/, ''); // Remove leading zeros
+    
+    // Request population, major racial variables, and occupation variables
+    const url = `${CENSUS_API_BASE}?get=B01003_001E,B03002_003E,B03002_004E,B03002_006E,B03002_012E,C24010_001E,C24010_002E,C24010_003E,C24010_004E,C24010_005E,C24010_006E&for=congressional%20district:${cd}&in=state:${getStateFIPS(state)}`;
+    
+    console.log(`Fetching district-level census data for ${district}: ${url}`);
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.warn(`Failed to fetch district census data for ${district}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (!data || data.length < 2) {
+      console.warn(`No district data returned for ${district}`);
+      return null;
+    }
+
+    // Parse the Census data (first row is headers, second row is data)
+    const row = data[1];
+    console.log(`Raw district census data for ${district}:`, row);
+    
+    const totalPopulation = parseInt(row[0]) || 0;
+    const white = parseInt(row[1]) || 0;
+    const black = parseInt(row[2]) || 0;
+    const asian = parseInt(row[3]) || 0;
+    const hispanic = parseInt(row[4]) || 0;
+    // Occupation variables
+    const totalEmployed = parseInt(row[5]) || 0;
+    const management = parseInt(row[6]) || 0;
+    const service = parseInt(row[7]) || 0;
+    const salesOffice = parseInt(row[8]) || 0;
+    const construction = parseInt(row[9]) || 0;
+    const production = parseInt(row[10]) || 0;
+    // Calculate "other" as the remainder
+    const other = Math.max(0, totalPopulation - white - black - asian - hispanic);
+    
+    // Calculate occupation percentages
+    const occPct = (n: number) => totalEmployed ? Math.round((n / totalEmployed) * 100) : 0;
+    
+    // Use mock/estimated values for other fields for now
+    const result: CensusData = {
+      zipCode: district, // Use district as identifier instead of ZIP
+      population: totalPopulation,
+      medianIncome: 0, // Not available in this call
+      medianAge: 0, // Not available in this call
+      educationLevels: {
+        lessThanHighSchool: 0,
+        highSchool: 0,
+        someCollege: 0,
+        bachelors: 0,
+        graduate: 0,
+      },
+      demographics: {
+        white: totalPopulation ? Math.round((white / totalPopulation) * 100) : 0,
+        black: totalPopulation ? Math.round((black / totalPopulation) * 100) : 0,
+        hispanic: totalPopulation ? Math.round((hispanic / totalPopulation) * 100) : 0,
+        asian: totalPopulation ? Math.round((asian / totalPopulation) * 100) : 0,
+        other: totalPopulation ? Math.round((other / totalPopulation) * 100) : 0,
+      },
+      occupations: {
+        management: occPct(management),
+        service: occPct(service),
+        salesOffice: occPct(salesOffice),
+        construction: occPct(construction),
+        production: occPct(production),
+      }
+    };
+
+    console.log(`Successfully fetched district-level census data for ${district}:`, result);
+    return result;
+  } catch (error) {
+    console.error('Error fetching district census data:', error);
+    return null;
+  }
+}
+
+// Helper function to convert state abbreviation to FIPS code
+function getStateFIPS(stateAbbr: string): string {
+  const stateFIPS: Record<string, string> = {
+    'AL': '01', 'AK': '02', 'AZ': '04', 'AR': '05', 'CA': '06', 'CO': '08', 'CT': '09', 'DE': '10',
+    'FL': '12', 'GA': '13', 'HI': '15', 'ID': '16', 'IL': '17', 'IN': '18', 'IA': '19', 'KS': '20',
+    'KY': '21', 'LA': '22', 'ME': '23', 'MD': '24', 'MA': '25', 'MI': '26', 'MN': '27', 'MS': '28',
+    'MO': '29', 'MT': '30', 'NE': '31', 'NV': '32', 'NH': '33', 'NJ': '34', 'NM': '35', 'NY': '36',
+    'NC': '37', 'ND': '38', 'OH': '39', 'OK': '40', 'OR': '41', 'PA': '42', 'RI': '44', 'SC': '45',
+    'SD': '46', 'TN': '47', 'TX': '48', 'UT': '49', 'VT': '50', 'VA': '51', 'WA': '53', 'WV': '54',
+    'WI': '55', 'WY': '56', 'DC': '11'
+  };
+  return stateFIPS[stateAbbr] || '00';
 }
