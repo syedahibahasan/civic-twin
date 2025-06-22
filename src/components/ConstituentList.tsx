@@ -1,16 +1,11 @@
 import React, { useState } from 'react';
-import { Users, RefreshCw, TrendingUp, DollarSign, GraduationCap, Calendar, MessageCircle, Database, AlertCircle, BarChart3, Briefcase, Home, BookOpen, AlertTriangle } from 'lucide-react';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
-import { Pie, Bar } from 'react-chartjs-2';
+import { Users, RefreshCw, TrendingUp, DollarSign, GraduationCap, Calendar, MessageCircle, Database, AlertCircle } from 'lucide-react';
 import useConstituents from '../hooks/useConstituents';
 import ConstituentChat from './ConstituentChat';
 import { DigitalTwin } from '../types';
 
-// Register Chart.js components
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
-
 const ConstituentList: React.FC = () => {
-  const { constituents, isLoading, error, refresh, stats, totalPopulation, censusDemographics, censusOccupations, censusAgeGroups, censusEconomicIndicators } = useConstituents(20);
+  const { constituents, isLoading, error, refresh, stats, totalPopulation, censusDemographics } = useConstituents(20);
   const [selectedConstituent, setSelectedConstituent] = useState<DigitalTwin | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
@@ -57,117 +52,6 @@ const ConstituentList: React.FC = () => {
   // Check if we have real Census data (district-level or valid ZIP codes)
   const hasRealData = totalPopulation > 0 && (censusDemographics || constituents.some(c => c.zipCode && c.zipCode.length === 5));
 
-  // Prepare pie chart data
-  const pieChartData = censusDemographics ? {
-    labels: ['White', 'Black', 'Hispanic', 'Asian', 'Other'],
-    datasets: [
-      {
-        data: [
-          censusDemographics.white,
-          censusDemographics.black,
-          censusDemographics.hispanic,
-          censusDemographics.asian,
-          censusDemographics.other
-        ],
-        backgroundColor: [
-          '#3B82F6', // Blue
-          '#1F2937', // Gray
-          '#F59E0B', // Amber
-          '#10B981', // Emerald
-          '#8B5CF6'  // Purple
-        ],
-        borderWidth: 2,
-        borderColor: '#ffffff'
-      }
-    ]
-  } : null;
-
-  // Prepare bar chart data for age demographics
-  const barChartData = censusAgeGroups ? {
-    labels: censusAgeGroups.map(item => item.ageRange),
-    datasets: [
-      {
-        label: 'Population',
-        data: censusAgeGroups.map(item => item.count),
-        backgroundColor: [
-          '#3B82F6', // Blue
-          '#10B981', // Green
-          '#F59E0B', // Amber
-          '#EF4444', // Red
-          '#8B5CF6', // Purple
-          '#06B6D4', // Cyan
-          '#84CC16'  // Lime
-        ],
-        borderColor: [
-          '#2563EB',
-          '#059669',
-          '#D97706',
-          '#DC2626',
-          '#7C3AED',
-          '#0891B2',
-          '#65A30D'
-        ],
-        borderWidth: 2,
-        borderRadius: 8,
-        borderSkipped: false,
-      }
-    ]
-  } : null;
-
-  const pieChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom' as const,
-        labels: {
-          padding: 20,
-          usePointStyle: true,
-          font: {
-            size: 12
-          }
-        }
-      },
-      tooltip: {
-        callbacks: {
-          label: function(context: { label: string; parsed: number }) {
-            return `${context.label}: ${context.parsed}%`;
-          }
-        }
-      }
-    }
-  };
-
-  const barChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false
-      },
-      tooltip: {
-        callbacks: {
-          label: function(context: { parsed: { y: number } }) {
-            return `Population: ${context.parsed.y.toLocaleString()}`;
-          }
-        }
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          callback: function(tickValue: string | number) {
-            if (typeof tickValue === 'number') {
-              return tickValue.toLocaleString();
-            }
-            return tickValue;
-          }
-        }
-      }
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -193,148 +77,6 @@ const ConstituentList: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Census Data Summary */}
-      {totalPopulation > 0 && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <BarChart3 className="h-6 w-6 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900">District Census Overview</h2>
-          </div>
-          
-          {/* Census Demographics Grid */}
-          {(censusDemographics || censusAgeGroups || censusOccupations || censusEconomicIndicators) && (
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Total Population Widget */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex items-center space-x-2 mb-3">
-                  <Users className="h-4 w-4 text-blue-600" />
-                  <h3 className="text-sm font-semibold text-gray-900">Total Population</h3>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">{totalPopulation.toLocaleString()}</p>
-                  <p className="text-xs text-gray-500 mt-1">residents in district</p>
-                </div>
-              </div>
-
-              {/* Median Income Widget */}
-              {censusEconomicIndicators && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">Median Income</h3>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-green-600">${censusEconomicIndicators.medianIncome.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500 mt-1">household income</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Homeownership Rate Widget */}
-              {censusEconomicIndicators && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <Home className="h-4 w-4 text-purple-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">Homeownership</h3>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-purple-600">{censusEconomicIndicators.homeownershipRate}%</p>
-                    <p className="text-xs text-gray-500 mt-1">own their homes</p>
-                  </div>
-                </div>
-              )}
-
-              {/* College Rate Widget */}
-              {censusEconomicIndicators && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <BookOpen className="h-4 w-4 text-indigo-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">College Educated</h3>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-indigo-600">{censusEconomicIndicators.collegeRate}%</p>
-                    <p className="text-xs text-gray-500 mt-1">have college degree</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Charts and Detailed Data Grid */}
-          {(censusDemographics || censusAgeGroups || censusOccupations) && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-              {/* Racial Demographics Pie Chart */}
-              {censusDemographics && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <BarChart3 className="h-4 w-4 text-blue-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">Racial Demographics</h3>
-                  </div>
-                  <div className="h-48">
-                    {pieChartData && <Pie data={pieChartData} options={pieChartOptions} />}
-                  </div>
-                </div>
-              )}
-
-              {/* Age Demographics Bar Chart */}
-              {censusAgeGroups && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <Calendar className="h-4 w-4 text-purple-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">Age Distribution</h3>
-                  </div>
-                  <div className="h-48">
-                    {barChartData && <Bar data={barChartData} options={barChartOptions} />}
-                  </div>
-                </div>
-              )}
-
-              {/* Top Jobs */}
-              {censusOccupations && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <Briefcase className="h-4 w-4 text-green-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">Top Occupations</h3>
-                  </div>
-                  <div className="space-y-2">
-                    {censusOccupations.map((job, index) => (
-                      <div key={job.job} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-semibold">
-                            {index + 1}
-                          </div>
-                          <p className="text-xs font-medium text-gray-900">{job.job}</p>
-                        </div>
-                        <p className="text-xs font-semibold text-green-600">{job.percentage}%</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Poverty Rate Warning */}
-          {censusEconomicIndicators && censusEconomicIndicators.povertyRate > 10 && (
-            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <AlertTriangle className="h-4 w-4 text-orange-600" />
-                <p className="text-sm text-orange-800">
-                  <span className="font-medium">Poverty Rate: {censusEconomicIndicators.povertyRate}%</span> - 
-                  This district has a higher than average poverty rate, indicating significant economic challenges.
-                </p>
-              </div>
-            </div>
-          )}
-          
-          <div className="mt-4 pt-4 border-t border-blue-200">
-            <p className="text-sm text-gray-600 text-center">
-              All data sourced from U.S. Census Bureau American Community Survey (ACS) API
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
@@ -357,66 +99,35 @@ const ConstituentList: React.FC = () => {
             )}
           </div>
           
+          {/* Filter Dropdown */}
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            aria-label="Filter constituents by type"
+          >
+            <option value="all">All Constituents</option>
+            <option value="students">Students</option>
+            <option value="professionals">Professionals</option>
+            <option value="business">Business Owners</option>
+            <option value="seniors">Seniors</option>
+            <option value="parents">Parents</option>
+            <option value="veterans">Veterans</option>
+            <option value="healthcare">Healthcare Workers</option>
+            <option value="teachers">Teachers</option>
+          </select>
+
+          {/* Refresh Button */}
           <button
             onClick={refresh}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={isLoading}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
         </div>
       </div>
-
-      {/* Filter Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center space-x-4">
-          <span className="text-sm font-medium text-gray-700">Filter by type:</span>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { key: 'all', label: 'All Types' },
-              { key: 'students', label: 'Students' },
-              { key: 'professionals', label: 'Professionals' },
-              { key: 'business', label: 'Business Owners' },
-              { key: 'seniors', label: 'Seniors' },
-              { key: 'parents', label: 'Parents' },
-              { key: 'veterans', label: 'Veterans' },
-              { key: 'healthcare', label: 'Healthcare' },
-              { key: 'teachers', label: 'Teachers' }
-            ].map((filter) => (
-              <button
-                key={filter.key}
-                onClick={() => setFilterType(filter.key)}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                  filterType === filter.key
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {filterType !== 'all' && (
-          <div className="mt-2 text-sm text-gray-600">
-            Showing {filteredConstituents.length} of {constituents.length} constituents
-          </div>
-        )}
-      </div>
-
-      {/* Data Source Info */}
-      {hasRealData && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center space-x-2">
-            <Database className="h-5 w-5 text-green-600" />
-            <h3 className="text-sm font-medium text-green-800">Real Census Data Active</h3>
-          </div>
-          <p className="text-sm text-green-700 mt-1">
-            Constituent profiles are generated using real demographic data from the U.S. Census Bureau's American Community Survey (ACS) API. 
-            {totalPopulation > 0 && censusDemographics ? ' Using direct district-level census data for accurate population and demographic information.' : ' Using ZIP code aggregated census data.'}
-          </p>
-        </div>
-      )}
 
       {/* Statistics */}
       {stats && (
