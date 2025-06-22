@@ -5,6 +5,8 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import districtsRoutes from './routes/districts.js';
+import cacheRoutes from './routes/cache.js';
+import aiRoutes from './routes/ai.js';
 
 // Load environment variables from .env.local first, then .env
 dotenv.config({ path: '.env.local' });
@@ -51,6 +53,8 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/districts', districtsRoutes);
+app.use('/api/cache', cacheRoutes);
+app.use('/api/ai', aiRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

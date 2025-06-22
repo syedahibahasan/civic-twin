@@ -32,7 +32,19 @@ class ConstituentService {
     this.lastDistrict = district;
 
     try {
-      // Fetch census data first
+      // First, try to get cached constituents
+      console.log(`Checking cache for district ${district}...`);
+      const cachedData = await this.getCachedConstituents(district);
+      
+      if (cachedData) {
+        console.log(`Using cached constituents for district ${district}`);
+        this.constituents = cachedData.constituents;
+        this.censusData = cachedData.censusData ? [cachedData.censusData] : [];
+        return this.constituents;
+      }
+
+      // If no cache, fetch census data and generate new constituents
+      console.log(`No cache found, generating new constituents for district ${district}`);
       const districtCensusData = await fetchDistrictData(district);
       this.censusData = districtCensusData;
       
@@ -47,7 +59,10 @@ class ConstituentService {
       const constituentsData = await generateConstituentsFromCensusData(representativeData, count);
       this.constituents = constituentsData;
       
-      console.log(`Successfully generated ${constituentsData.length} realistic constituents`);
+      // Cache the generated constituents
+      await this.cacheConstituents(district, constituentsData, representativeData);
+      
+      console.log(`Successfully generated and cached ${constituentsData.length} realistic constituents`);
       return this.constituents;
     } catch (error) {
       console.error('Error fetching constituents:', error);
@@ -62,6 +77,69 @@ class ConstituentService {
       }
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  private async getCachedConstituents(district: string): Promise<{ constituents: DigitalTwin[], censusData?: CensusData } | null> {
+    try {
+      // Get auth token from localStorage or context
+      const token = localStorage.getItem('authToken');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/cache/constituents/${district}`, {
+        headers
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          constituents: data.constituents,
+          censusData: data.censusData
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching cached constituents:', error);
+      return null;
+    }
+  }
+
+  private async cacheConstituents(district: string, constituents: DigitalTwin[], censusData: CensusData): Promise<void> {
+    try {
+      // Get auth token from localStorage or context
+      const token = localStorage.getItem('authToken');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch('/api/cache/constituents', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          district,
+          constituents,
+          censusData
+        })
+      });
+
+      if (response.ok) {
+        console.log(`Successfully cached constituents for district ${district}`);
+      } else {
+        console.warn(`Failed to cache constituents for district ${district}`);
+      }
+    } catch (error) {
+      console.error('Error caching constituents:', error);
     }
   }
 

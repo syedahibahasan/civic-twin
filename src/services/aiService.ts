@@ -1,22 +1,53 @@
 import { Policy, DigitalTwin, PolicySuggestion, CensusData, Congressman } from '../types';
-import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true,
-  baseURL: 'https://api.openai.com/v1', // Explicitly set the base URL
-});
+// Helper function to call Anthropic API through backend proxy
+async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTokens: number = 3000): Promise<string> {
+  try {
+    const response = await fetch('/api/ai/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        systemPrompt,
+        userPrompt,
+        maxTokens
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`AI API error: ${response.status} ${errorData.error || response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.result || 'Unable to generate response';
+  } catch (error) {
+    console.error('Error calling AI API:', error);
+    throw error;
+  }
+}
 
 export async function summarizePolicy(content: string, congressman?: Congressman, censusData?: CensusData): Promise<string> {
+  // First, try to get cached policy summary
+  if (congressman?.district) {
+    try {
+      console.log(`Checking cache for policy summary in district ${congressman.district}...`);
+      const cachedSummary = await getCachedPolicySummary(congressman.district, content);
+      
+      if (cachedSummary) {
+        console.log(`Using cached policy summary for district ${congressman.district}`);
+        return cachedSummary;
+      }
+    } catch (error) {
+      console.log('Cache check failed, proceeding with AI generation');
+    }
+  }
+
   const maxRetries = 3;
   let retryCount = 0;
 
-  while (retryCount < maxRetries) {
-    try {
-      console.log(`Calling OpenAI API for structured policy summary (attempt ${retryCount + 1})...`);
-      console.log('API Key available:', !!import.meta.env.VITE_OPENAI_API_KEY);
-      
-      const systemPrompt = `You are a senior policy analyst creating professional, easy-to-understand summaries of legislative documents. Your goal is to make complex policy accessible to congressional staff and constituents.
+  const systemPrompt = `You are a senior policy analyst creating professional, easy-to-understand summaries of legislative documents. Your goal is to make complex policy accessible to congressional staff and constituents.
 
 Write in a clear, professional tone. Use bullet points, bold headers, and structured formatting to make the content scannable and engaging. Focus on practical implications and real-world impact.
 
@@ -55,7 +86,7 @@ Format your response exactly like this:
 
 Be thorough but concise. Use data when available. Make complex policy accessible to non-experts.`;
 
-      const userPrompt = `Analyze this policy document for ${congressman ? `${congressman.name} (${congressman.district}, ${congressman.state})` : 'CA-12 (San Francisco)'}:
+  const userPrompt = `Analyze this policy document for ${congressman ? `${congressman.name} (${congressman.district}, ${congressman.state})` : 'CA-12 (San Francisco)'}:
 
 ${content}
 
@@ -70,29 +101,24 @@ District Context: ${congressman ? `${congressman.district} (${congressman.state}
 
 Provide a comprehensive, professional analysis that makes the policy accessible and highlights district-specific implications.`;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: userPrompt
-          }
-        ],
-        max_tokens: 3000,
-        temperature: 0.7,
-      });
+  while (retryCount < maxRetries) {
+    try {
+      console.log(`Calling Anthropic API for structured policy summary (attempt ${retryCount + 1})...`);
+      console.log('API Key available:', true);
 
-      console.log('OpenAI response received:', completion.choices[0]?.message?.content);
-      return completion.choices[0]?.message?.content || 'Unable to generate summary';
+      const summary = await callAnthropicAPI(systemPrompt, userPrompt);
+      
+      // Cache the generated summary
+      if (congressman?.district) {
+        await cachePolicySummary(congressman.district, content, summary, congressman);
+      }
+
+      return summary;
     } catch (error) {
       console.error(`Attempt ${retryCount + 1} failed:`, error);
       
       if (error instanceof Error) {
-        if (error.message.includes('429') || error.message.includes('rate limit')) {
+        if (error.message.includes('429') || error.message.includes('rate limit') || error.message.includes('quota')) {
           retryCount++;
           if (retryCount < maxRetries) {
             const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 2s, 4s, 8s
@@ -100,16 +126,52 @@ Provide a comprehensive, professional analysis that makes the policy accessible 
             await new Promise(resolve => setTimeout(resolve, delay));
             continue;
           } else {
-            console.log('Max retries reached, using fallback summary');
-            return generateStructuredFallbackSummary(content, congressman, censusData);
+            console.log('Max retries reached, trying Anthropic as fallback...');
+            try {
+              const summary = await callAnthropicAPI(systemPrompt, userPrompt, 3000);
+              
+              // Cache the generated summary
+              if (congressman?.district) {
+                await cachePolicySummary(congressman.district, content, summary, congressman);
+              }
+              
+              return summary;
+            } catch (anthropicError) {
+              console.log('Anthropic fallback also failed, using structured fallback summary');
+              return generateStructuredFallbackSummary(content, congressman, censusData);
+            }
           }
         }
         if (error.message.includes('CORS')) {
-          console.log('CORS error detected, using fallback summary');
-          return generateStructuredFallbackSummary(content, congressman, censusData);
+          console.log('CORS error detected, trying Anthropic as fallback...');
+          try {
+            const summary = await callAnthropicAPI(systemPrompt, userPrompt, 3000);
+            
+            // Cache the generated summary
+            if (congressman?.district) {
+              await cachePolicySummary(congressman.district, content, summary, congressman);
+            }
+            
+            return summary;
+          } catch (anthropicError) {
+            console.log('Anthropic fallback also failed, using structured fallback summary');
+            return generateStructuredFallbackSummary(content, congressman, censusData);
+          }
         }
         if (error.message.includes('401')) {
-          return 'Authentication error: Please check your OpenAI API key.';
+          console.log('Anthropic auth error, trying Anthropic as fallback...');
+          try {
+            const summary = await callAnthropicAPI(systemPrompt, userPrompt, 3000);
+            
+            // Cache the generated summary
+            if (congressman?.district) {
+              await cachePolicySummary(congressman.district, content, summary, congressman);
+            }
+            
+            return summary;
+          } catch (anthropicError) {
+            return 'Authentication error: Please check your API keys.';
+          }
         }
       }
       
@@ -119,6 +181,68 @@ Provide a comprehensive, professional analysis that makes the policy accessible 
   }
   
   return generateStructuredFallbackSummary(content, congressman, censusData);
+}
+
+// Helper functions for caching
+async function getCachedPolicySummary(district: string, content: string): Promise<string | null> {
+  try {
+    // Get auth token from localStorage or context
+    const token = localStorage.getItem('authToken');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`/api/cache/policy-summary/${district}?policyContent=${encodeURIComponent(content)}`, {
+      headers
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.summary;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching cached policy summary:', error);
+    return null;
+  }
+}
+
+async function cachePolicySummary(district: string, content: string, summary: string, congressman?: Congressman): Promise<void> {
+  try {
+    // Get auth token from localStorage or context
+    const token = localStorage.getItem('authToken');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch('/api/cache/policy-summary', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        district,
+        policyContent: content,
+        summary,
+        congressman
+      })
+    });
+
+    if (response.ok) {
+      console.log(`Successfully cached policy summary for district ${district}`);
+    } else {
+      console.warn(`Failed to cache policy summary for district ${district}`);
+    }
+  } catch (error) {
+    console.error('Error caching policy summary:', error);
+  }
 }
 
 function generateStructuredFallbackSummary(content: string, congressman?: Congressman, censusData?: CensusData): string {
@@ -305,23 +429,10 @@ ${constituentTypes.map(type => `• ${type}`).join('\n')}
 
 export async function generateDigitalTwins(censusData: CensusData, policy: Policy): Promise<DigitalTwin[]> {
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are creating realistic digital twin constituents based on Census data for ZIP code ${censusData.zipCode}. Generate 4 diverse individuals with realistic demographics, occupations, and personal stories. Each twin should have a unique perspective on how the policy affects them.`
-        },
-        {
-          role: "user",
-          content: `Create 4 digital twin constituents for ZIP code ${censusData.zipCode} based on this policy:\n\n${policy.summary}\n\nReturn a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`
-        }
-      ],
-      max_tokens: 1000,
-      temperature: 0.8,
-    });
+    const response = await callAnthropicAPI(`You are creating realistic digital twin constituents based on Census data for ZIP code ${censusData.zipCode}. Generate 4 diverse individuals with realistic demographics, occupations, and personal stories. Each twin should have a unique perspective on how the policy affects them.
 
-    const response = completion.choices[0]?.message?.content;
+Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, `Create 4 digital twin constituents for ZIP code ${censusData.zipCode} based on this policy:\n\n${policy.summary}\n\nReturn a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, 1000);
+
     if (response) {
       try {
         const twins = JSON.parse(response) as DigitalTwin[];
@@ -333,6 +444,7 @@ export async function generateDigitalTwins(censusData: CensusData, policy: Polic
         }));
       } catch (parseError) {
         console.error('Error parsing twins response:', parseError);
+        console.log('Raw response:', response);
         return generateFallbackTwins(censusData);
       }
     }
@@ -345,8 +457,22 @@ export async function generateDigitalTwins(censusData: CensusData, policy: Polic
 }
 
 function generateFallbackTwins(censusData: CensusData): DigitalTwin[] {
-  // Use the enhanced constituent generation function instead of hard-coded values
-  return generateAccurateFallbackConstituents(censusData, 4);
+  const names = ['Sarah Johnson', 'Michael Chen', 'Maria Rodriguez', 'David Thompson'];
+  const occupations = ['Teacher', 'Software Engineer', 'Nurse', 'Small Business Owner'];
+  const educations = ['Bachelor\'s Degree', 'Master\'s Degree', 'Associate\'s Degree', 'High School Diploma'];
+  
+  return names.map((name, index) => ({
+    id: `twin-${index + 1}`,
+    name,
+    age: Math.floor(Math.random() * 40) + 25,
+    education: educations[index],
+    annualIncome: Math.floor(Math.random() * 50000) + 30000,
+    occupation: occupations[index],
+    demographics: 'Mixed',
+    zipCode: censusData.zipCode,
+    personalStory: `${name} has lived in the district for ${Math.floor(Math.random() * 20) + 5} years and is concerned about local issues.`,
+    policyImpact: 'To be determined based on policy analysis'
+  }));
 }
 
 export async function generateChatResponse(
@@ -355,23 +481,9 @@ export async function generateChatResponse(
   policy: Policy
 ): Promise<string> {
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are ${twin.name}, a ${twin.age}-year-old ${twin.occupation} from ZIP code ${twin.zipCode}. You have a ${twin.education} education and earn $${twin.annualIncome.toLocaleString()} annually. Your personal story: ${twin.personalStory}. Respond as this person would, discussing how the policy affects you personally. Keep responses conversational and under 100 words.`
-        },
-        {
-          role: "user",
-          content: `Policy: ${policy.summary}\n\nUser message: ${message}`
-        }
-      ],
-      max_tokens: 200,
-      temperature: 0.8,
-    });
+    const response = await callAnthropicAPI(`You are ${twin.name}, a ${twin.age}-year-old ${twin.occupation} from ZIP code ${twin.zipCode}. You have a ${twin.education} education and earn $${twin.annualIncome.toLocaleString()} annually. Your personal story: ${twin.personalStory}. Respond as this person would, discussing how the policy affects you personally. Keep responses conversational and under 100 words.`, `Policy: ${policy.summary}\n\nUser message: ${message}`, 200);
 
-    return completion.choices[0]?.message?.content || 'I need to think about that for a moment.';
+    return response || 'I need to think about that for a moment.';
   } catch (error) {
     console.error('Error generating chat response:', error);
     return 'I apologize, but I\'m having trouble responding right now.';
@@ -383,32 +495,18 @@ export async function generatePolicySuggestions(
   policy: Policy
 ): Promise<PolicySuggestion[]> {
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are a policy analyst. Based on the digital twins' characteristics and the policy details, generate 4 specific, actionable suggestions to improve the policy. Focus on addressing potential concerns that constituents with these demographics and circumstances might have."
-        },
-        {
-          role: "user",
-          content: `Policy: ${policy.summary}\n\nDigital Twins Characteristics:\n${twins.map(twin => `- ${twin.name}: ${twin.age} years old, ${twin.occupation}, ${twin.education}, $${twin.annualIncome.toLocaleString()}/year, ${twin.demographics}. Story: ${twin.personalStory}`).join('\n')}\n\nGenerate 4 policy improvement suggestions. Return as JSON array with objects containing: id, title, description, impactedPopulation, severity (high/medium/low)`
-        }
-      ],
-      max_tokens: 800,
-      temperature: 0.7,
-    });
+    const response = await callAnthropicAPI("You are a policy analyst. Based on the digital twins' characteristics and the policy details, generate 4 specific, actionable suggestions to improve the policy. Focus on addressing potential concerns that constituents with these demographics and circumstances might have.", `Policy: ${policy.summary}\n\nDigital Twins Characteristics:\n${twins.map(twin => `- ${twin.name}: ${twin.age} years old, ${twin.occupation}, ${twin.education}, $${twin.annualIncome.toLocaleString()}/year, ${twin.demographics}. Story: ${twin.personalStory}`).join('\n')}\n\nGenerate 4 policy improvement suggestions. Return as JSON array with objects containing: id, title, description, impactedPopulation, severity (high/medium/low)`, 800);
 
-    const response = completion.choices[0]?.message?.content;
     if (response) {
       try {
         const suggestions = JSON.parse(response) as PolicySuggestion[];
         return suggestions.map((suggestion: PolicySuggestion, index: number) => ({
           ...suggestion,
-          id: `suggestion-${index + 1}`,
+          id: `suggestion-${index + 1}`
         }));
       } catch (parseError) {
         console.error('Error parsing suggestions response:', parseError);
+        console.log('Raw response:', response);
         return generateFallbackSuggestions();
       }
     }
@@ -455,12 +553,7 @@ function generateFallbackSuggestions(): PolicySuggestion[] {
 
 export async function generateConstituentsFromCensusData(censusData: CensusData, count: number = 10): Promise<DigitalTwin[]> {
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are creating realistic digital twin constituents based on REAL Census data for ${censusData.zipCode.includes('-') ? `Congressional District ${censusData.zipCode}` : `ZIP code ${censusData.zipCode}`}. Generate ${count} UNIQUE individuals that ACCURATELY reflect the FULL income distribution and demographics of the district.
+    const response = await callAnthropicAPI(`You are creating realistic digital twin constituents based on REAL Census data for ${censusData.zipCode.includes('-') ? `Congressional District ${censusData.zipCode}` : `ZIP code ${censusData.zipCode}`}. Generate ${count} UNIQUE individuals that ACCURATELY reflect the FULL income distribution and demographics of the district.
 
 CRITICAL REQUIREMENTS FOR ACCURACY:
 1. Age distribution MUST match the Census age groups data exactly
@@ -485,11 +578,7 @@ CENSUS DATA TO USE:
 - Poverty Rate: ${censusData.povertyRate || 'Not available'}%
 - College Rate: ${censusData.collegeRate || 'Not available'}%
 
-Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`
-        },
-        {
-          role: "user",
-          content: `Create ${count} REALISTIC digital twin constituents for ${censusData.zipCode.includes('-') ? `Congressional District ${censusData.zipCode}` : `ZIP code ${censusData.zipCode}`} that are REPRESENTATIVE of this Census data:
+Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, `Create ${count} REALISTIC digital twin constituents for ${censusData.zipCode.includes('-') ? `Congressional District ${censusData.zipCode}` : `ZIP code ${censusData.zipCode}`} that are REPRESENTATIVE of this Census data:
 
 Population: ${censusData.population.toLocaleString()}
 Median Income: $${censusData.medianIncome.toLocaleString()}
@@ -525,14 +614,8 @@ REQUIREMENTS:
 4. Create realistic personal stories that reflect the district's characteristics
 5. Ensure the overall group represents the district's diversity without being rigid
 
-Use "Constituent #1", "Constituent #2", etc. for names.`
-        }
-      ],
-      max_tokens: 3000,
-      temperature: 0.7,
-    });
+Use "Constituent #1", "Constituent #2", etc. for names.`, 3000);
 
-    const response = completion.choices[0]?.message?.content;
     if (response) {
       try {
         const twins = JSON.parse(response) as DigitalTwin[];
@@ -553,6 +636,8 @@ Use "Constituent #1", "Constituent #2", etc. for names.`
     return generateAccurateFallbackConstituents(censusData, count);
   } catch (error) {
     console.error('Error generating constituents from Census data:', error);
+    
+    // Try fallback to local generation
     return generateAccurateFallbackConstituents(censusData, count);
   }
 }
