@@ -133,6 +133,9 @@ export class CensusApiService {
 
 export const censusApi = new CensusApiService();
 
+// Default export for easier importing
+export default censusApi;
+
 // Legacy function for backward compatibility
 export async function fetchCensusData(district: string): Promise<CensusData | null> {
   return censusApi.getDistrictData(district);

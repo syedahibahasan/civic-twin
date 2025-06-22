@@ -1,5 +1,5 @@
 import { DigitalTwin, CensusData } from '../types';
-import { censusApi } from './censusApi';
+import censusApi from './censusApi';
 import { generateConstituentsFromCensusData } from './aiService';
 
 class ConstituentService {
@@ -46,12 +46,13 @@ class ConstituentService {
       // If no cache, fetch census data and generate new constituents
       console.log(`No cache found, generating new constituents for district ${district}`);
       const districtCensusData = await censusApi.getDistrictData(district);
-      this.censusData = [districtCensusData];
       
       if (!districtCensusData) {
         throw new Error('No census data available for district');
       }
-
+      
+      this.censusData = [districtCensusData];
+      
       // Use the enhanced AI service to generate realistic constituents based on Census data
       console.log(`Generating ${count} realistic constituents using AI for district ${district}`);
       
@@ -122,7 +123,8 @@ class ConstituentService {
           demographics,
           zipCode: censusData.zipCode, // This is now the district identifier
           personalStory: this.generatePersonalStory(name, age, education, occupation, annualIncome, demographics),
-          policyImpact: 'To be determined based on policy analysis'
+          policyImpact: 'To be determined based on policy analysis',
+          politicalPolicies: ['Universal healthcare access', 'Education funding', 'Economic development']
         };
         
         constituents.push(constituent);
@@ -225,7 +227,8 @@ class ConstituentService {
         demographics,
         zipCode: district,
         personalStory: this.generatePersonalStory(name, age, education, occupation, annualIncome, demographics),
-        policyImpact: 'To be determined based on policy analysis'
+        policyImpact: 'To be determined based on policy analysis',
+        politicalPolicies: ['Universal healthcare access', 'Education funding', 'Economic development']
       };
       
       constituents.push(constituent);
@@ -403,10 +406,85 @@ class ConstituentService {
   }
 
   async refreshConstituents(district: string, count: number = 10): Promise<DigitalTwin[]> {
+    console.log('🔄 refreshConstituents called for district:', district, 'count:', count);
+    
+    // Clear local cache
+    console.log('🗑️ Clearing local cache...');
     this.constituents = [];
     this.censusData = [];
     this.lastDistrict = null;
-    return this.getConstituents(district, count);
+    
+    // Invalidate database cache
+    console.log('🗑️ Invalidating database cache...');
+    await this.invalidateCache(district);
+    
+    // Force fresh generation by bypassing cache check
+    try {
+      console.log(`🆕 Forcing fresh generation of ${count} constituents for district ${district}`);
+      
+      // Fetch fresh census data
+      console.log('📊 Fetching fresh census data...');
+      const districtCensusData = await censusApi.getDistrictData(district);
+      if (!districtCensusData) {
+        throw new Error('No census data available for district');
+      }
+      
+      console.log('✅ Census data fetched successfully');
+      this.censusData = [districtCensusData];
+      
+      // Generate fresh constituents using AI service directly
+      console.log('🤖 Generating fresh constituents with AI...');
+      const constituentsData = await generateConstituentsFromCensusData(districtCensusData, count);
+      console.log('✅ AI generation completed, got', constituentsData.length, 'constituents');
+      
+      this.constituents = constituentsData;
+      
+      // Cache the fresh constituents
+      console.log('💾 Caching fresh constituents...');
+      await this.cacheConstituents(district, constituentsData, districtCensusData);
+      
+      console.log(`🎉 Successfully generated and cached ${constituentsData.length} fresh constituents`);
+      return this.constituents;
+    } catch (error) {
+      console.error('❌ Error in fresh generation:', error);
+      // Fallback to simple generation if AI generation fails
+      try {
+        console.log('🔄 Falling back to simple generation...');
+        const constituentsData = await this.generateSimpleConstituents(district, count);
+        this.constituents = constituentsData;
+        return this.constituents;
+      } catch (fallbackError) {
+        console.error('❌ Fallback method also failed:', fallbackError);
+        throw error;
+      }
+    }
+  }
+
+  private async invalidateCache(district: string): Promise<void> {
+    try {
+      // Get auth token from localStorage or context
+      const token = localStorage.getItem('authToken');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/cache/constituents/${district}`, {
+        method: 'DELETE',
+        headers
+      });
+
+      if (response.ok) {
+        console.log(`Successfully invalidated cache for district ${district}`);
+      } else {
+        console.warn(`Failed to invalidate cache for district ${district}`);
+      }
+    } catch (error) {
+      console.error('Error invalidating cache:', error);
+    }
   }
 
   // New method to generate common constituent types for dashboard
@@ -699,10 +777,40 @@ class ConstituentService {
     };
   }
 
-  clearCache() {
+  async clearCache() {
     this.constituents = [];
     this.censusData = [];
     this.lastDistrict = null;
+    
+    // Invalidate all cached constituents for the user
+    await this.invalidateAllCache();
+  }
+
+  private async invalidateAllCache(): Promise<void> {
+    try {
+      // Get auth token from localStorage or context
+      const token = localStorage.getItem('authToken');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch('/api/cache/user-cache', {
+        method: 'DELETE',
+        headers
+      });
+
+      if (response.ok) {
+        console.log('Successfully invalidated all cached data');
+      } else {
+        console.warn('Failed to invalidate all cached data');
+      }
+    } catch (error) {
+      console.error('Error invalidating all cache:', error);
+    }
   }
 }
 

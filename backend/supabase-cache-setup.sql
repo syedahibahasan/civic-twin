@@ -56,11 +56,29 @@ CREATE POLICY "Authenticated users can update cache data" ON ai_cache
 GRANT ALL ON ai_cache TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ai_cache TO authenticated;
 
+-- Migration: Update existing constituent cache entries to include politicalPolicies
+-- This ensures backward compatibility with existing cached data
+DO $$
+BEGIN
+  -- Update existing constituent cache entries to add politicalPolicies if they don't exist
+  UPDATE ai_cache 
+  SET data = jsonb_set(
+    data, 
+    '{politicalPolicies}', 
+    '["Policy 1", "Policy 2", "Policy 3"]'::jsonb
+  )
+  WHERE cache_type = 'constituents' 
+    AND data ? 'id' 
+    AND NOT (data ? 'politicalPolicies');
+    
+  RAISE NOTICE 'Updated % constituent cache entries to include politicalPolicies', FOUND;
+END $$;
+
 -- Add comments for documentation
 COMMENT ON TABLE ai_cache IS 'Cache for AI-generated content to reduce API calls and improve performance';
 COMMENT ON COLUMN ai_cache.district IS 'Congressional district identifier (e.g., CA-12)';
 COMMENT ON COLUMN ai_cache.cache_type IS 'Type of cached content: constituents or policy_summary';
 COMMENT ON COLUMN ai_cache.policy_hash IS 'Hash of policy content for policy_summary cache entries';
-COMMENT ON COLUMN ai_cache.data IS 'The actual AI-generated content (JSON)';
+COMMENT ON COLUMN ai_cache.data IS 'The actual AI-generated content (JSON) - for constituents includes politicalPolicies array';
 COMMENT ON COLUMN ai_cache.census_data IS 'Census data used for constituent generation';
 COMMENT ON COLUMN ai_cache.congressman_data IS 'Congressman data for policy summaries'; 

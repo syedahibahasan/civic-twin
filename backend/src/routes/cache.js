@@ -119,6 +119,43 @@ router.get('/constituents/:district', optionalAuth, async (req, res) => {
   }
 });
 
+// Delete cached constituents for a district (per user)
+router.delete('/constituents/:district', optionalAuth, async (req, res) => {
+  try {
+    const { district } = req.params;
+    const userId = req.user?.id; // Will be null if not authenticated
+    
+    const { data, error } = await supabaseAdmin
+      .from('ai_cache')
+      .delete()
+      .eq('district', district)
+      .eq('cache_type', 'constituents')
+      .eq('user_id', userId)
+      .select();
+
+    if (error) {
+      console.error('Error deleting cached constituents:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    if (data && data.length > 0) {
+      res.json({
+        message: 'Cached constituents deleted successfully',
+        deletedCount: data.length
+      });
+    } else {
+      res.json({
+        message: 'No cached constituents found to delete',
+        deletedCount: 0
+      });
+    }
+
+  } catch (error) {
+    console.error('Error deleting cached constituents:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Cache policy summary (per user)
 router.post('/policy-summary', optionalAuth, async (req, res) => {
   try {

@@ -77,6 +77,7 @@ export interface DigitalTwin {
   zipCode: string;
   personalStory: string;
   policyImpact: string;
+  politicalPolicies: string[];
 }
 
 export interface ChatMessage {

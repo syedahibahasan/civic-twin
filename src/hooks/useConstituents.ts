@@ -56,12 +56,20 @@ export function useConstituents(count: number = 10, useCommonTypes: boolean = fa
   const refresh = async () => {
     if (!state.user?.district) return;
     
+    console.log('🔄 Refresh button clicked for district:', state.user.district);
+    setIsLoading(true);
+    
     try {
+      console.log('📞 Calling constituentService.refreshConstituents...');
       const data = await constituentService.refreshConstituents(state.user.district, count);
+      console.log('✅ Refresh completed, got', data.length, 'constituents');
       setConstituents(data);
       setError(null);
     } catch (err) {
+      console.error('❌ Refresh failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to refresh constituents');
+    } finally {
+      setIsLoading(false);
     }
   };
 

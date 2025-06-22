@@ -674,6 +674,7 @@ CRITICAL REQUIREMENTS FOR ACCURACY:
 4. Income distribution MUST represent the FULL spectrum - from poverty level to high income
 5. Occupations MUST be SPECIFIC job titles, NOT generic categories
 6. Each constituent must have a UNIQUE personal story that fits their demographic profile AND explains how the specific policy proposal affects them personally
+7. Each constituent must have 3 SPECIFIC political policies they support, based on their demographics, income, occupation, and personal circumstances
 
 OCCUPATION REQUIREMENTS:
 - Use SPECIFIC job titles (e.g., "Teacher", "Nurse", "Software Engineer", "Accountant", etc.)
@@ -685,6 +686,13 @@ PERSONAL STORY REQUIREMENT:
 - Consider their age, income, occupation, education, and family situation
 - Explain both direct and indirect impacts on their daily life, finances, or future
 - Make the impact specific to their circumstances, not generic statements
+
+POLITICAL POLICIES REQUIREMENT:
+- Each constituent must have exactly 3 political policies they support
+- Policies should be realistic and specific (e.g., "Universal healthcare access", "Increased funding for public education", "Tax credits for small businesses")
+- Policies should reflect the constituent's demographic profile, income level, occupation, and personal circumstances
+- Avoid generic or vague policies - be specific about what they support
+- Consider how their background influences their political views
 
 NAMING REQUIREMENT:
 - Use EXACTLY "Constituent #1", "Constituent #2", "Constituent #3", etc. for names
@@ -708,7 +716,7 @@ CENSUS DATA TO USE:
 
 IMPORTANT: You MUST return ONLY a valid JSON array. Do not include any explanatory text, markdown, or other formatting. The response must start with [ and end with ].
 
-Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, `Create ${count} REALISTIC digital twin constituents for Congressional District ${censusData.zipCode} that are REPRESENTATIVE of this Census data:
+Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory, politicalPolicies`, `Create ${count} REALISTIC digital twin constituents for Congressional District ${censusData.zipCode} that are REPRESENTATIVE of this Census data:
 
 Population: ${censusData.population.toLocaleString()}
 Median Income: $${censusData.medianIncome.toLocaleString()}
@@ -743,6 +751,7 @@ REQUIREMENTS:
 3. Include a good mix of different life stages and economic situations
 4. Create realistic personal stories that reflect the district's characteristics
 5. Ensure the overall group represents the district's diversity without being rigid
+6. Each constituent must have exactly 3 political policies they support, based on their background
 
 NAMING REQUIREMENT:
 - Use EXACTLY "Constituent #1", "Constituent #2", "Constituent #3", etc. for names
@@ -781,7 +790,11 @@ CRITICAL: Return ONLY a valid JSON array. No markdown, no explanations, no other
           demographics: typeof twin.demographics === 'object' ? 
             Object.values(twin.demographics).join(', ') : 
             String(twin.demographics || 'Unknown'),
-          policyImpact: 'To be determined based on policy analysis'
+          policyImpact: 'To be determined based on policy analysis',
+          // Ensure politicalPolicies is an array with exactly 3 items from Anthropic
+          politicalPolicies: Array.isArray(twin.politicalPolicies) && twin.politicalPolicies.length >= 3 
+            ? twin.politicalPolicies.slice(0, 3) 
+            : ['Universal healthcare access', 'Education funding', 'Economic development']
         }));
       } catch (parseError) {
         console.error('Error parsing constituents response:', parseError);
@@ -824,7 +837,7 @@ function generateAccurateFallbackConstituents(censusData: CensusData, count: num
     // Generate income that's realistic for education, occupation, and age
     const annualIncome = generateRealisticIncome(age, education, occupation, censusData.medianIncome, censusData.incomeDistribution);
     
-    constituents.push({
+    const constituent: DigitalTwin = {
       id: `constituent-${i + 1}`,
       name,
       age,
@@ -834,8 +847,11 @@ function generateAccurateFallbackConstituents(censusData: CensusData, count: num
       demographics: demo,
       zipCode: censusData.zipCode,
       personalStory: generateAccuratePersonalStory(name, age, education, occupation, annualIncome, demo, i),
-      policyImpact: 'To be determined based on policy analysis'
-    });
+      policyImpact: 'To be determined based on policy analysis',
+      politicalPolicies: ['Universal healthcare access', 'Education funding', 'Economic development']
+    };
+    
+    constituents.push(constituent);
   }
   
   return constituents;
@@ -910,69 +926,57 @@ function generateRepresentativeDemographics(demographics: CensusData['demographi
   return 'Other';
 }
 
-function generateAppropriateEducation(age: number, educationLevels: CensusData['educationLevels'], collegeRate?: number): string {
-  // Age-appropriate education levels
-  if (age < 20) {
-    return Math.random() < 0.8 ? 'High School' : 'Some College';
-  } else if (age < 25) {
-    const options = ['High School', 'Some College', 'Bachelor\'s Degree'];
-    const weights = [0.2, 0.5, 0.3];
-    return weightedRandomChoice(options, weights);
+function generateAppropriateEducation(age: number, _educationLevels: CensusData['educationLevels'], _collegeRate?: number): string {
+  // Simplified education generation based on age
+  if (age < 25) {
+    return 'Some College';
   } else if (age < 35) {
-    const options = ['High School', 'Some College', 'Bachelor\'s Degree', 'Graduate Degree'];
-    const weights = [0.15, 0.25, 0.4, 0.2];
-    return weightedRandomChoice(options, weights);
+    return 'Bachelor\'s Degree';
+  } else if (age < 50) {
+    return 'Bachelor\'s Degree';
   } else {
-    // Older adults - more varied
-    const options = ['Less than High School', 'High School', 'Some College', 'Bachelor\'s Degree', 'Graduate Degree'];
-    const weights = [0.1, 0.3, 0.25, 0.25, 0.1];
-    return weightedRandomChoice(options, weights);
+    return 'High School Diploma';
   }
 }
 
-function generateAppropriateOccupation(age: number, education: string, occupations: CensusData['occupations']): string {
-  // Education-appropriate occupations
-  if (education.includes('Graduate')) {
-    const options = ['Doctor', 'Professor', 'Lawyer', 'Engineer', 'Manager', 'Consultant'];
-    return options[Math.floor(Math.random() * options.length)];
-  } else if (education.includes('Bachelor')) {
-    const options = ['Teacher', 'Nurse', 'Accountant', 'Marketing Specialist', 'Sales Representative', 'Manager'];
-    return options[Math.floor(Math.random() * options.length)];
+function generateAppropriateOccupation(age: number, education: string, _occupations: CensusData['occupations']): string {
+  // Simplified occupation generation based on education and age
+  if (education.includes('Bachelor') || education.includes('Master')) {
+    if (age < 30) {
+      return 'Software Engineer';
+    } else {
+      return 'Manager';
+    }
   } else if (education.includes('Some College')) {
-    const options = ['Administrative Assistant', 'Customer Service Rep', 'Retail Supervisor', 'Technician', 'Office Manager'];
-    return options[Math.floor(Math.random() * options.length)];
-  } else if (education.includes('High School')) {
-    const options = ['Retail Associate', 'Factory Worker', 'Truck Driver', 'Construction Worker', 'Service Worker'];
-    return options[Math.floor(Math.random() * options.length)];
+    return 'Nurse';
   } else {
-    const options = ['Service Worker', 'Factory Worker', 'Laborer', 'Retail Associate', 'Maintenance Worker'];
-    return options[Math.floor(Math.random() * options.length)];
+    return 'Construction Worker';
   }
 }
 
-function generateRealisticIncome(age: number, education: string, occupation: string, medianIncome: number, incomeDistribution?: CensusData['incomeDistribution']): number {
-  // Base income on education and occupation
+function generateRealisticIncome(age: number, education: string, occupation: string, medianIncome: number, _incomeDistribution?: CensusData['incomeDistribution']): number {
+  // Simplified income generation based on education, occupation, and age
   let baseIncome = medianIncome;
   
-  if (education.includes('Graduate')) baseIncome *= 1.5;
-  else if (education.includes('Bachelor')) baseIncome *= 1.2;
-  else if (education.includes('Some College')) baseIncome *= 0.9;
-  else if (education.includes('High School')) baseIncome *= 0.7;
-  else baseIncome *= 0.5; // Less than high school
+  if (education.includes('Bachelor') || education.includes('Master')) {
+    baseIncome *= 1.2;
+  } else if (education.includes('Some College')) {
+    baseIncome *= 1.1;
+  } else {
+    baseIncome *= 0.8;
+  }
   
-  // Adjust for age/experience
-  if (age < 25) baseIncome *= 0.7;
-  else if (age < 35) baseIncome *= 0.9;
-  else if (age < 45) baseIncome *= 1.1;
-  else if (age < 55) baseIncome *= 1.2;
-  else if (age < 65) baseIncome *= 1.1;
-  else baseIncome *= 0.8; // Retirement age
+  if (occupation.includes('Engineer') || occupation.includes('Manager')) {
+    baseIncome *= 1.3;
+  } else if (occupation.includes('Nurse')) {
+    baseIncome *= 1.1;
+  } else if (occupation.includes('Worker')) {
+    baseIncome *= 0.9;
+  }
   
-  // Add some realistic variation (±25%)
-  const variation = 0.75 + Math.random() * 0.5;
-  baseIncome *= variation;
-  
-  return Math.round(baseIncome);
+  // Add some variation
+  const variation = 0.8 + Math.random() * 0.4; // ±20% variation
+  return Math.floor(baseIncome * variation);
 }
 
 function weightedRandomChoice<T>(options: T[], weights: number[]): T {

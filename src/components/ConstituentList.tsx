@@ -209,6 +209,18 @@ const ConstituentList: React.FC = () => {
                 <p className="text-sm text-gray-600 line-clamp-3">{constituent.personalStory}</p>
               </div>
               
+              {/* Political Policies Section */}
+              {constituent.politicalPolicies && constituent.politicalPolicies.length > 0 && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                  <p className="text-xs text-blue-800 font-medium mb-2">Political Policies Supported:</p>
+                  <div className="space-y-1">
+                    {constituent.politicalPolicies.map((policy, index) => (
+                      <p key={index} className="text-xs text-blue-700">• {policy}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               {constituent.policyImpact !== 'To be determined based on policy analysis' && (
                 <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
                   <p className="text-xs text-green-800 font-medium">Policy Impact:</p>
