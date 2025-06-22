@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload as UploadIcon, FileText, AlertCircle, CheckCircle, MessageCircle, MapPin, DollarSign, GraduationCap, Briefcase, User } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { summarizePolicy, generateDigitalTwins } from '../services/aiService';
 import { fetchCensusData } from '../services/censusApi';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -10,6 +11,7 @@ import { DigitalTwin } from '../types';
 
 const Upload: React.FC = () => {
   const { state, dispatch } = useAppContext();
+  const { state: authState } = useAuth();
   const navigate = useNavigate();
   const [dragActive, setDragActive] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'complete' | 'error'>('idle');
@@ -76,8 +78,12 @@ const Upload: React.FC = () => {
       setPolicyText(text);
       setUploadStatus('processing');
 
-      // Simulate policy processing
-      const generatedSummary = await summarizePolicy(text);
+      // Fetch census data first
+      const censusData = await fetchCensusData(state.currentZipCode);
+      dispatch({ type: 'SET_CENSUS_DATA', payload: censusData });
+
+      // Generate structured summary with congressman and census data
+      const generatedSummary = await summarizePolicy(text, authState.user || undefined, censusData);
       setSummary(generatedSummary);
 
       // Create policy object
@@ -90,10 +96,6 @@ const Upload: React.FC = () => {
       };
 
       dispatch({ type: 'SET_POLICY', payload: policy });
-
-      // Fetch census data
-      const censusData = await fetchCensusData(state.currentZipCode);
-      dispatch({ type: 'SET_CENSUS_DATA', payload: censusData });
 
       setUploadStatus('complete');
     } catch (error) {
@@ -124,8 +126,12 @@ const Upload: React.FC = () => {
     setUploadStatus('processing');
 
     try {
-      // Simulate policy processing
-      const generatedSummary = await summarizePolicy(textInput);
+      // Fetch census data first
+      const censusData = await fetchCensusData(state.currentZipCode);
+      dispatch({ type: 'SET_CENSUS_DATA', payload: censusData });
+
+      // Generate structured summary with congressman and census data
+      const generatedSummary = await summarizePolicy(textInput, authState.user || undefined, censusData);
       setSummary(generatedSummary);
 
       // Create policy object
@@ -138,10 +144,6 @@ const Upload: React.FC = () => {
       };
 
       dispatch({ type: 'SET_POLICY', payload: policy });
-
-      // Fetch census data
-      const censusData = await fetchCensusData(state.currentZipCode);
-      dispatch({ type: 'SET_CENSUS_DATA', payload: censusData });
 
       setUploadStatus('complete');
     } catch (error) {
@@ -299,10 +301,10 @@ const Upload: React.FC = () => {
             
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">AI Summary</h3>
-                <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Structured Policy Analysis</h3>
+                <div className="text-gray-700 leading-relaxed bg-gray-50 p-6 rounded-lg whitespace-pre-line font-mono text-sm">
                   {summary}
-                </p>
+                </div>
               </div>
             </div>
           </div>
