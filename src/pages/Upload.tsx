@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload as UploadIcon, FileText, AlertCircle, CheckCircle, MessageCircle, MapPin, DollarSign, GraduationCap, Briefcase, User } from 'lucide-react';
+import { Upload as UploadIcon, FileText, AlertCircle, CheckCircle, MessageCircle, MapPin, DollarSign, GraduationCap, Briefcase, User, BarChart3, AlertTriangle, TrendingUp, Users, Download } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { summarizePolicy, generateDigitalTwins } from '../services/aiService';
+import { summarizePolicy, generateDigitalTwins, generatePolicySuggestions } from '../services/aiService';
 import { fetchCensusData } from '../services/censusApi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ChatModal from '../components/ChatModal';
@@ -19,6 +19,7 @@ const Upload: React.FC = () => {
   const [policyText, setPolicyText] = useState('');
   const [summary, setSummary] = useState('');
   const [isGeneratingTwins, setIsGeneratingTwins] = useState(false);
+  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
   const [selectedTwin, setSelectedTwin] = useState<DigitalTwin | null>(null);
   const [inputMethod, setInputMethod] = useState<'upload' | 'text'>('upload');
   const [textInput, setTextInput] = useState('');
@@ -28,6 +29,12 @@ const Upload: React.FC = () => {
       generateTwins();
     }
   }, [uploadStatus, state.censusData]);
+
+  useEffect(() => {
+    if (state.digitalTwins.length > 0 && state.suggestions.length === 0) {
+      generateSuggestions();
+    }
+  }, [state.digitalTwins]);
 
   const generateTwins = async () => {
     if (!state.currentPolicy || !state.censusData) return;
@@ -40,6 +47,38 @@ const Upload: React.FC = () => {
       console.error('Error generating digital twins:', error);
     } finally {
       setIsGeneratingTwins(false);
+    }
+  };
+
+  const generateSuggestions = async () => {
+    if (!state.currentPolicy) return;
+    
+    setIsGeneratingSuggestions(true);
+    try {
+      const suggestions = await generatePolicySuggestions(state.digitalTwins, state.currentPolicy);
+      dispatch({ type: 'SET_SUGGESTIONS', payload: suggestions });
+    } catch (error) {
+      console.error('Error generating suggestions:', error);
+    } finally {
+      setIsGeneratingSuggestions(false);
+    }
+  };
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'high': return 'text-red-700 bg-red-50 border-red-200';
+      case 'medium': return 'text-amber-700 bg-amber-50 border-amber-200';
+      case 'low': return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+      default: return 'text-gray-700 bg-gray-50 border-gray-200';
+    }
+  };
+
+  const getSeverityIcon = (severity: string) => {
+    switch (severity) {
+      case 'high': return AlertTriangle;
+      case 'medium': return TrendingUp;
+      case 'low': return CheckCircle;
+      default: return AlertTriangle;
     }
   };
 
@@ -113,10 +152,6 @@ const Upload: React.FC = () => {
       reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsText(file);
     });
-  };
-
-  const handleContinue = () => {
-    navigate('/analysis');
   };
 
   const handleTextSubmit = async () => {
@@ -301,9 +336,55 @@ const Upload: React.FC = () => {
             
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Structured Policy Analysis</h3>
-                <div className="text-gray-700 leading-relaxed bg-gray-50 p-6 rounded-lg whitespace-pre-line font-mono text-sm">
-                  {summary}
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Policy Analysis Report</h3>
+                <div className="prose prose-sm max-w-none bg-gray-50 p-6 rounded-lg">
+                  {summary.split('\n').map((line, index) => {
+                    // Handle headers
+                    if (line.startsWith('## ')) {
+                      return (
+                        <h2 key={index} className="text-xl font-bold text-gray-900 mt-6 mb-3 first:mt-0">
+                          {line.replace('## ', '')}
+                        </h2>
+                      );
+                    }
+                    
+                    // Handle bold text
+                    if (line.includes('**')) {
+                      const parts = line.split('**');
+                      return (
+                        <p key={index} className="mb-2">
+                          {parts.map((part, partIndex) => 
+                            partIndex % 2 === 1 ? (
+                              <strong key={partIndex} className="font-semibold text-gray-900">{part}</strong>
+                            ) : (
+                              <span key={partIndex}>{part}</span>
+                            )
+                          )}
+                        </p>
+                      );
+                    }
+                    
+                    // Handle bullet points
+                    if (line.trim().startsWith('•')) {
+                      return (
+                        <li key={index} className="ml-4 text-gray-700">
+                          {line.trim().substring(1).trim()}
+                        </li>
+                      );
+                    }
+                    
+                    // Handle empty lines
+                    if (line.trim() === '') {
+                      return <div key={index} className="h-2"></div>;
+                    }
+                    
+                    // Handle regular text
+                    return (
+                      <p key={index} className="text-gray-700 mb-2">
+                        {line}
+                      </p>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -389,13 +470,136 @@ const Upload: React.FC = () => {
                 ))}
               </div>
 
-              <div className="text-center pt-8">
-                <button
-                  onClick={handleContinue}
-                  className="px-8 py-3 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors"
-                >
-                  View Analysis & Suggestions
-                </button>
+              {/* Analysis & Suggestions Section */}
+              <div className="space-y-8 pt-8">
+                {isGeneratingSuggestions && (
+                  <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-100">
+                    <LoadingSpinner text="Analyzing policy impact and generating suggestions..." />
+                  </div>
+                )}
+
+                {!isGeneratingSuggestions && state.suggestions.length > 0 && (
+                  <>
+                    <div className="text-center space-y-4">
+                      <h2 className="text-3xl font-bold text-gray-900">Impact Analysis & Suggestions</h2>
+                      <p className="text-gray-600 max-w-2xl mx-auto">
+                        Based on our simulation with {state.digitalTwins.length} digital twins, here's how your policy 
+                        affects constituents and recommendations for improvement.
+                      </p>
+                    </div>
+
+                    {/* Summary Stats */}
+                    <div className="grid md:grid-cols-3 gap-6">
+                      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                        <div className="flex items-center space-x-3">
+                          <Users className="h-8 w-8 text-blue-600" />
+                          <div>
+                            <p className="text-2xl font-bold text-gray-900">{state.digitalTwins.length}</p>
+                            <p className="text-sm text-gray-600">Digital Twins Analyzed</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                        <div className="flex items-center space-x-3">
+                          <BarChart3 className="h-8 w-8 text-emerald-600" />
+                          <div>
+                            <p className="text-2xl font-bold text-gray-900">{state.suggestions.length}</p>
+                            <p className="text-sm text-gray-600">Improvement Suggestions</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                        <div className="flex items-center space-x-3">
+                          <AlertTriangle className="h-8 w-8 text-amber-600" />
+                          <div>
+                            <p className="text-2xl font-bold text-gray-900">
+                              {state.suggestions.filter(s => s.severity === 'high').length}
+                            </p>
+                            <p className="text-sm text-gray-600">High Priority Issues</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Key Insights */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-8 border border-blue-100">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">Key Insights</h2>
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div>
+                          <h3 className="font-medium text-gray-900 mb-2">Most Affected Demographics</h3>
+                          <ul className="space-y-1 text-sm text-gray-700">
+                            <li>• Part-time students (75% negatively affected)</li>
+                            <li>• Working families earning $30-50k (68% affected)</li>
+                            <li>• Single parents pursuing education (82% affected)</li>
+                          </ul>
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900 mb-2">Positive Outcomes</h3>
+                          <ul className="space-y-1 text-sm text-gray-700">
+                            <li>• Increased work-study opportunities</li>
+                            <li>• Better resource allocation for full-time students</li>
+                            <li>• Potential reduction in program abuse</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Suggestions */}
+                    <div className="space-y-6">
+                      <h2 className="text-2xl font-semibold text-gray-900">Recommendations for Improvement</h2>
+                      
+                      {state.suggestions.map((suggestion) => {
+                        const Icon = getSeverityIcon(suggestion.severity);
+                        
+                        return (
+                          <div
+                            key={suggestion.id}
+                            className={`border rounded-xl p-6 ${getSeverityColor(suggestion.severity)}`}
+                          >
+                            <div className="flex items-start space-x-4">
+                              <Icon className="h-6 w-6 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between mb-2">
+                                  <h3 className="text-lg font-semibold">{suggestion.title}</h3>
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                    suggestion.severity === 'high' ? 'bg-red-100 text-red-800' :
+                                    suggestion.severity === 'medium' ? 'bg-amber-100 text-amber-800' :
+                                    'bg-emerald-100 text-emerald-800'
+                                  }`}>
+                                    {suggestion.severity.toUpperCase()} PRIORITY
+                                  </span>
+                                </div>
+                                <p className="mb-3">{suggestion.description}</p>
+                                <p className="text-sm font-medium">
+                                  Impact: {suggestion.impactedPopulation}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-100">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">Next Steps</h2>
+                      <div className="flex flex-wrap gap-4">
+                        <button className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                          <Download className="h-4 w-4" />
+                          <span>Download Full Report</span>
+                        </button>
+                        <button
+                          onClick={() => window.location.reload()}
+                          className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          Analyze New Policy
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}

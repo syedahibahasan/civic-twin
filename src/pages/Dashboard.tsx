@@ -3,7 +3,6 @@ import { useNavigate, Routes, Route } from 'react-router-dom';
 import { 
   Building2, 
   Upload, 
-  BarChart3, 
   User, 
   LogOut, 
   Menu, 
@@ -15,7 +14,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import UploadPage from './Upload';
-import Analysis from './Analysis';
 import Profile from './Profile';
 import ConstituentList from '../components/ConstituentList';
 
@@ -33,7 +31,6 @@ const Dashboard: React.FC = () => {
     { path: '/dashboard', label: 'Dashboard', icon: Building2 },
     { path: '/dashboard/constituents', label: 'Constituents', icon: Users },
     { path: '/dashboard/upload', label: 'Upload Policy', icon: Upload },
-    { path: '/dashboard/analysis', label: 'Analysis', icon: BarChart3 },
     { path: '/dashboard/profile', label: 'Profile', icon: User },
   ];
 
@@ -144,7 +141,6 @@ const Dashboard: React.FC = () => {
             <Route path="/" element={<DashboardHome />} />
             <Route path="/constituents" element={<ConstituentList />} />
             <Route path="/upload" element={<UploadPage />} />
-            <Route path="/analysis" element={<Analysis />} />
             <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>
@@ -174,13 +170,6 @@ const DashboardHome: React.FC = () => {
       icon: Upload,
       action: () => navigate('/dashboard/upload'),
       color: 'bg-blue-500',
-    },
-    {
-      title: 'View Analysis',
-      description: 'Review previous policy impact analysis',
-      icon: BarChart3,
-      action: () => navigate('/dashboard/analysis'),
-      color: 'bg-emerald-500',
     },
     {
       title: 'Update Profile',

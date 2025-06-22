@@ -16,62 +16,59 @@ export async function summarizePolicy(content: string, congressman?: Congressman
       console.log(`Calling OpenAI API for structured policy summary (attempt ${retryCount + 1})...`);
       console.log('API Key available:', !!import.meta.env.VITE_OPENAI_API_KEY);
       
-      const systemPrompt = `You are a policy analyst summarizing legislative text. Do not rely on metadata like word count. Your job is to understand the actual content and impact of the bill.
+      const systemPrompt = `You are a senior policy analyst creating professional, easy-to-understand summaries of legislative documents. Your goal is to make complex policy accessible to congressional staff and constituents.
 
-Analyze the FULL content thoroughly and provide a detailed summary using this exact structure:
+Write in a clear, professional tone. Use bullet points, bold headers, and structured formatting to make the content scannable and engaging. Focus on practical implications and real-world impact.
 
-📄 BILL SUMMARY
+Format your response exactly like this:
 
-Title of the bill (or infer from context)
+## 📋 Executive Summary
 
-What the bill proposes (in plain English)
+**Bill Title:** [Clear, descriptive title]
 
-Key provisions or changes proposed
+**Purpose:** [One sentence explaining what this bill does]
 
-The national or federal goal of the bill
+**Key Impact:** [2-3 bullet points of main effects]
 
-🏛️ DISTRICT-LEVEL ANALYSIS
+## 🏛️ District Analysis
 
-Congressperson: [Insert name]
+**Representative:** [Name and district]
 
-District: [Insert district and state]
+**Local Impact:** [How this specifically affects the district's residents]
 
-Use realistic demographic, economic, or educational data (e.g., Census, BLS)
+**Affected Groups:** [Bullet points of key demographic groups]
 
-Describe how this bill would likely affect the people living in this district
+## 👥 Constituent Impact
 
-Call out relevant groups (e.g., low-income residents, veterans, students)
+**Directly Impacted Constituents:**
+• [Type 1]: [How they're affected]
+• [Type 2]: [How they're affected]
+• [Type 3]: [How they're affected]
 
-👥 CONSTITUENT IMPACT SNAPSHOT
+**Economic Impact:** [Financial implications for the district]
 
-Name 3–5 types of constituents directly impacted
+## 📊 Relevance Assessment
 
-Describe the nature of the impact (positive/negative/neutral)
+**Relevance Score:** [1-5 stars] ⭐⭐⭐⭐⭐
 
-Mention if the district has higher-than-average presence of any impacted group
+**Reasoning:** [Clear explanation of why this matters to the district]
 
-📌 RELEVANCE SCORE
-
-Score 1–5: how directly this bill affects the district
-
-Justify your score using the bill's content and the district's demographics
-
-Be extremely thorough, analytical, and detailed. Focus on the actual legislative content, specific provisions, and real-world implications. Use concrete examples and data-driven analysis.`;
+Be thorough but concise. Use data when available. Make complex policy accessible to non-experts.`;
 
       const userPrompt = `Analyze this policy document for ${congressman ? `${congressman.name} (${congressman.district}, ${congressman.state})` : 'CA-12 (San Francisco)'}:
 
 ${content}
 
-${censusData ? `Census Data for ZIP ${censusData.zipCode}:
-- Population: ${censusData.population.toLocaleString()}
-- Median Income: $${censusData.medianIncome.toLocaleString()}
-- Median Age: ${censusData.medianAge}
-- Education: ${censusData.educationLevels.bachelors}% Bachelor's, ${censusData.educationLevels.highSchool}% High School
-- Demographics: ${censusData.demographics.white}% White, ${censusData.demographics.hispanic}% Hispanic, ${censusData.demographics.asian}% Asian, ${censusData.demographics.black}% Black` : ''}
+${censusData ? `District Demographics (ZIP ${censusData.zipCode}):
+• Population: ${censusData.population.toLocaleString()}
+• Median Income: $${censusData.medianIncome.toLocaleString()}
+• Median Age: ${censusData.medianAge}
+• Education: ${censusData.educationLevels.bachelors}% Bachelor's, ${censusData.educationLevels.highSchool}% High School
+• Demographics: ${censusData.demographics.white}% White, ${censusData.demographics.hispanic}% Hispanic, ${censusData.demographics.asian}% Asian, ${censusData.demographics.black}% Black` : ''}
 
-District Context: ${congressman ? `${congressman.district} (${congressman.state})` : 'CA-12 (San Francisco)'} is a diverse district with significant federal presence, tech industry, and strong commitment to diversity and inclusion programs. The district has high education levels, significant Asian and Hispanic populations, and many federal employees and contractors.
+District Context: ${congressman ? `${congressman.district} (${congressman.state})` : 'CA-12 (San Francisco)'} is a diverse urban district with significant federal presence, tech industry, and strong commitment to diversity and inclusion programs.
 
-Provide a comprehensive, detailed analysis focusing on the actual legislative content and real-world implications.`;
+Provide a comprehensive, professional analysis that makes the policy accessible and highlights district-specific implications.`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
@@ -129,10 +126,39 @@ function generateStructuredFallbackSummary(content: string, congressman?: Congre
   const words = content.toLowerCase().split(/\s+/);
   const wordCount = words.length;
   
-  // Handle very short content
-  if (wordCount < 5) {
+  // Handle very short content with a more helpful message
+  if (wordCount < 10) {
     const wordText = wordCount === 1 ? 'word' : 'words';
-    return `📄 BILL SUMMARY\n\nTitle of the bill: Document Analysis\n\nThe provided text "${content}" is very brief (${wordCount} ${wordText}). For meaningful policy analysis, please provide a more detailed policy document, bill text, or legislative content.\n\nKey provisions or changes proposed: Unable to determine due to limited content\n\nThe national or federal goal of the bill: Unable to determine\n\n🏛️ DISTRICT-LEVEL ANALYSIS\n\nCongressperson: ${congressman?.name || 'Not specified'}\n\nDistrict: ${congressman?.district || 'Not specified'}, ${congressman?.state || 'Not specified'}\n\nUse realistic demographic, economic, or educational data: Insufficient content for detailed demographic analysis\n\nDescribe how this bill would likely affect the people living in this district: Unable to determine due to limited content\n\nCall out relevant groups: Unable to identify specific groups due to insufficient content\n\n👥 CONSTITUENT IMPACT SNAPSHOT\n\nName 3–5 types of constituents directly impacted: Unable to determine due to limited content\n\nDescribe the nature of the impact: Unable to determine\n\nMention if the district has higher-than-average presence of any impacted group: Unable to determine\n\n📌 RELEVANCE SCORE\n\nScore 1–5: 1\n\nJustify your score: Insufficient content for meaningful analysis`;
+    return `## 📋 Executive Summary
+
+**Bill Title:** Document Analysis
+
+**Purpose:** The provided text "${content}" is very brief (${wordCount} ${wordText}). For a comprehensive policy analysis, please upload a more detailed policy document, bill text, or legislative content.
+
+**Key Impact:** 
+• Insufficient content for meaningful analysis
+• Please provide a longer document for detailed review
+
+## 🏛️ District Analysis
+
+**Representative:** ${congressman?.name || 'Not specified'} (${congressman?.district || 'Not specified'}, ${congressman?.state || 'Not specified'})
+
+**Local Impact:** Unable to determine due to limited content
+
+**Affected Groups:** Unable to identify specific groups due to insufficient content
+
+## 👥 Constituent Impact
+
+**Directly Impacted Constituents:**
+• Unable to determine due to limited content
+
+**Economic Impact:** Unable to assess due to insufficient information
+
+## 📊 Relevance Assessment
+
+**Relevance Score:** ⭐ (1/5)
+
+**Reasoning:** The document contains insufficient content for meaningful policy analysis. Please upload a more detailed policy document to receive a comprehensive assessment.`;
   }
   
   // Look for common policy-related keywords
@@ -164,29 +190,45 @@ function generateStructuredFallbackSummary(content: string, congressman?: Congre
     billTitle = 'Healthcare Policy';
   } else if (content.toLowerCase().includes('environment') || content.toLowerCase().includes('climate')) {
     billTitle = 'Environmental Policy';
+  } else if (content.toLowerCase().includes('funding') || content.toLowerCase().includes('appropriation')) {
+    billTitle = 'Federal Funding Policy';
   }
   
-  let summary = `📄 BILL SUMMARY\n\nTitle of the bill: ${billTitle}\n\nThis document contains approximately ${wordCount} ${wordText}`;
+  // Build executive summary
+  let purpose = `This document contains approximately ${wordCount} ${wordText}`;
   
   if (hasPolicyKeywords) {
-    summary += ` and addresses ${foundKeywords.slice(0, 3).join(', ')} related matters`;
+    purpose += ` and addresses ${foundKeywords.slice(0, 3).join(', ')} related matters`;
   } else if (hasFormalLanguage) {
-    summary += ` and contains legislative or regulatory language`;
+    purpose += ` and contains legislative or regulatory language`;
   } else if (hasNumbers) {
-    summary += ` and includes numerical data and funding information`;
+    purpose += ` and includes numerical data and funding information`;
   } else {
-    summary += ` and may not be a formal policy document`;
+    purpose += ` and may not be a formal policy document`;
   }
   
   if (dollarAmounts.length > 0) {
-    summary += `. Funding amounts include ${dollarAmounts.join(', ')}`;
+    purpose += `. Funding amounts include ${dollarAmounts.join(', ')}`;
   }
   
   if (percentages.length > 0) {
-    summary += `. Changes of ${percentages.join(', ')}`;
+    purpose += `. Changes of ${percentages.join(', ')}`;
   }
   
-  summary += `\n\nKey provisions or changes proposed: ${hasPolicyKeywords ? `Addresses ${foundKeywords.slice(0, 3).join(', ')} related provisions` : 'Unable to determine specific provisions from content'}`;
+  // Key impact points
+  let keyImpact = [];
+  if (hasPolicyKeywords) {
+    keyImpact.push(`Addresses ${foundKeywords.slice(0, 3).join(', ')} related provisions`);
+  }
+  if (dollarAmounts.length > 0) {
+    keyImpact.push(`Involves federal funding of ${dollarAmounts.join(', ')}`);
+  }
+  if (percentages.length > 0) {
+    keyImpact.push(`Proposes changes of ${percentages.join(', ')}`);
+  }
+  if (keyImpact.length === 0) {
+    keyImpact.push('General policy implementation');
+  }
   
   // Determine national goal based on keywords
   let nationalGoal = 'To implement legislative changes as outlined';
@@ -200,45 +242,33 @@ function generateStructuredFallbackSummary(content: string, congressman?: Congre
     nationalGoal = 'To improve healthcare access and delivery systems';
   }
   
-  summary += `\n\nThe national or federal goal of the bill: ${nationalGoal}`;
-  
-  // District-level analysis
-  summary += `\n\n🏛️ DISTRICT-LEVEL ANALYSIS\n\nCongressperson: ${congressman?.name || 'Not specified'}\n\nDistrict: ${congressman?.district || 'Not specified'}, ${congressman?.state || 'Not specified'}\n\nUse realistic demographic, economic, or educational data: `;
-  
-  if (censusData) {
-    summary += `Based on Census data for ZIP ${censusData.zipCode}, the district has a population of ${censusData.population.toLocaleString()}, median income of $${censusData.medianIncome.toLocaleString()}, median age of ${censusData.medianAge}, and education levels of ${censusData.educationLevels.bachelors}% Bachelor's degrees and ${censusData.educationLevels.highSchool}% High School graduates. Demographics show ${censusData.demographics.white}% White, ${censusData.demographics.hispanic}% Hispanic, ${censusData.demographics.asian}% Asian, and ${censusData.demographics.black}% Black residents.`;
-  } else {
-    summary += 'District demographic data not available for detailed analysis.';
-  }
-  
-  summary += `\n\nDescribe how this bill would likely affect the people living in this district: `;
+  // District analysis
+  let localImpact = 'The impact would depend on the specific policy focus, but could affect federal employees, contractors, and communities that rely on federal programs.';
+  let affectedGroups = ['Federal employees and contractors', 'Students and educators', 'Low-income residents', 'Communities that rely on federal programs'];
   
   if (censusData) {
-    summary += `Given the district's demographics with ${censusData.demographics.hispanic}% Hispanic and ${censusData.demographics.asian}% Asian populations, and ${censusData.educationLevels.bachelors}% with higher education, this policy could significantly impact federal employees, tech workers, and communities that rely on federal programs. The median income of $${censusData.medianIncome.toLocaleString()} suggests many residents may be affected by changes to federal funding or programs.`;
-  } else {
-    summary += 'The impact would depend on the specific policy focus, but could affect federal employees, contractors, and communities that rely on federal programs.';
+    localImpact = `Given the district's demographics with ${censusData.demographics.hispanic}% Hispanic and ${censusData.demographics.asian}% Asian populations, and ${censusData.educationLevels.bachelors}% with higher education, this policy could significantly impact federal employees, tech workers, and communities that rely on federal programs. The median income of $${censusData.medianIncome.toLocaleString()} suggests many residents may be affected by changes to federal funding or programs.`;
+    
+    affectedGroups = [
+      `Low-income residents (median income $${censusData.medianIncome.toLocaleString()})`,
+      `Students and educators (${censusData.educationLevels.bachelors}% with higher education)`,
+      `Hispanic and Asian communities (${censusData.demographics.hispanic}% and ${censusData.demographics.asian}% respectively)`,
+      'Federal employees and contractors'
+    ];
   }
   
-  summary += `\n\nCall out relevant groups: `;
+  // Constituent impact
+  const constituentTypes = [
+    'Federal Employees: May be affected by changes to federal programs and office structures',
+    'Tech Industry Workers: Could see impacts on federal contracts and diversity initiatives',
+    'Students and Educators: May experience changes in federal educational programs',
+    'Low-Income Residents: Could be affected by modifications to federal assistance programs',
+    'Small Business Owners: May see changes in federal contracting and support programs'
+  ];
   
-  if (censusData) {
-    summary += `Low-income residents (given median income of $${censusData.medianIncome.toLocaleString()}), students and educators (${censusData.educationLevels.bachelors}% with higher education), Hispanic and Asian communities (${censusData.demographics.hispanic}% and ${censusData.demographics.asian}% respectively), and federal employees/contractors.`;
-  } else {
-    summary += 'Federal employees, contractors, students, low-income residents, and communities that rely on federal programs.';
-  }
-  
-  // Constituent impact snapshot
-  summary += `\n\n👥 CONSTITUENT IMPACT SNAPSHOT\n\nName 3–5 types of constituents directly impacted:\n\n1. Federal Employees: May be affected by changes to federal programs and office structures\n2. Tech Industry Workers: Could see impacts on federal contracts and diversity initiatives\n3. Students and Educators: May experience changes in federal educational programs\n4. Low-Income Residents: Could be affected by modifications to federal assistance programs\n5. Small Business Owners: May see changes in federal contracting and support programs`;
-  
-  summary += `\n\nDescribe the nature of the impact: The specific impact depends on the policy's focus, but could range from positive (increased funding for certain programs) to negative (reduced services or job losses) to neutral (administrative changes with minimal direct impact).`;
-  
-  summary += `\n\nMention if the district has higher-than-average presence of any impacted group: `;
-  
-  if (censusData) {
-    summary += `Yes, this district has higher-than-average education levels (${censusData.educationLevels.bachelors}% with Bachelor's degrees) and significant diversity (${censusData.demographics.hispanic}% Hispanic, ${censusData.demographics.asian}% Asian), which may make federal employees, tech workers, and educated professionals more prevalent than in other districts.`;
-  } else {
-    summary += 'The district likely has higher-than-average presence of federal employees, tech workers, and educated professionals given its urban nature and federal presence.';
-  }
+  const economicImpact = censusData 
+    ? `Given the district's median income of $${censusData.medianIncome.toLocaleString()}, changes to federal programs could significantly impact household budgets and local economic activity.`
+    : 'Changes to federal programs could impact household budgets and local economic activity depending on the specific policy focus.';
   
   // Relevance score
   let relevanceScore = 3;
@@ -263,9 +293,38 @@ function generateStructuredFallbackSummary(content: string, congressman?: Congre
     scoreReason += ' - high education levels make federal policy changes more impactful';
   }
   
-  summary += `\n\n📌 RELEVANCE SCORE\n\nScore 1–5: ${relevanceScore}\n\nJustify your score: ${scoreReason}`;
+  const stars = '⭐'.repeat(relevanceScore) + '☆'.repeat(5 - relevanceScore);
   
-  return summary;
+  return `## 📋 Executive Summary
+
+**Bill Title:** ${billTitle}
+
+**Purpose:** ${purpose}
+
+**Key Impact:** 
+${keyImpact.map(impact => `• ${impact}`).join('\n')}
+
+## 🏛️ District Analysis
+
+**Representative:** ${congressman?.name || 'Not specified'} (${congressman?.district || 'Not specified'}, ${congressman?.state || 'Not specified'})
+
+**Local Impact:** ${localImpact}
+
+**Affected Groups:**
+${affectedGroups.map(group => `• ${group}`).join('\n')}
+
+## 👥 Constituent Impact
+
+**Directly Impacted Constituents:**
+${constituentTypes.map(type => `• ${type}`).join('\n')}
+
+**Economic Impact:** ${economicImpact}
+
+## 📊 Relevance Assessment
+
+**Relevance Score:** ${stars} (${relevanceScore}/5)
+
+**Reasoning:** ${scoreReason}`;
 }
 
 export async function generateDigitalTwins(censusData: CensusData, policy: Policy): Promise<DigitalTwin[]> {
