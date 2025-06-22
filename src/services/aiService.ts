@@ -459,8 +459,19 @@ CRITICAL REQUIREMENTS FOR ACCURACY:
 2. Racial/ethnic demographics MUST match the Census percentages
 3. Education levels MUST reflect the actual Census education data
 4. Income distribution MUST represent the FULL spectrum - from poverty level to high income
-5. Occupations MUST reflect the district's employment patterns
-6. Each constituent must have a UNIQUE personal story that fits their demographic profile
+5. Occupations MUST be SPECIFIC job titles, NOT generic categories
+6. Each constituent must have a UNIQUE personal story that fits their demographic profile AND explains how the specific policy proposal affects them personally
+
+OCCUPATION REQUIREMENTS:
+- Use SPECIFIC job titles (e.g., "Teacher", "Nurse", "Software Engineer", "Accountant", etc.)
+- DO NOT use generic terms like "Management", "Service", "Professional", "Worker"
+- Each occupation must be a specific, realistic job title
+
+PERSONAL STORY REQUIREMENT:
+- Each constituent's personal story must explain how the specific policy proposal affects them personally
+- Consider their age, income, occupation, education, and family situation
+- Explain both direct and indirect impacts on their daily life, finances, or future
+- Make the impact specific to their circumstances, not generic statements
 
 NAMING REQUIREMENT:
 - Use EXACTLY "Constituent #1", "Constituent #2", "Constituent #3", "Constituent #4" for names
@@ -478,7 +489,7 @@ CENSUS DATA TO USE:
 - Occupations: ${Object.entries(censusData.occupations).map(([occ, pct]) => `${occ}: ${pct}%`).join(', ')}
 - Income Distribution: ${censusData.incomeDistribution ? Object.entries(censusData.incomeDistribution).map(([range, pct]) => `${range}: ${pct}%`).join(', ') : 'Not available'}
 
-Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, `Create 4 digital twin constituents for Congressional District ${censusData.zipCode} based on this policy:\n\n${policy.summary}\n\nIMPORTANT: Use "Constituent #1", "Constituent #2", "Constituent #3", "Constituent #4" for names. Do NOT generate real names.\n\nCENSUS DATA FOR ACCURATE GENERATION:\nPopulation: ${censusData.population.toLocaleString()}\nMedian Income: $${censusData.medianIncome.toLocaleString()}\nDemographics: ${Object.entries(censusData.demographics).map(([demo, pct]) => `${demo}: ${pct}%`).join(', ')}\nEducation: ${Object.entries(censusData.educationLevels).map(([level, pct]) => `${level}: ${pct}%`).join(', ')}\nOccupations: ${Object.entries(censusData.occupations).map(([occ, pct]) => `${occ}: ${pct}%`).join(', ')}\n\nReturn a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, 1000);
+Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, `Create 4 digital twin constituents for Congressional District ${censusData.zipCode} based on this policy:\n\n${policy.summary}\n\nIMPORTANT: Use "Constituent #1", "Constituent #2", "Constituent #3", "Constituent #4" for names. Do NOT generate real names.\n\nOCCUPATION REQUIREMENT: Use SPECIFIC job titles like "Teacher", "Nurse", "Software Engineer", "Accountant", etc. DO NOT use generic terms like "Management", "Service".\n\nPERSONAL STORY REQUIREMENT: Each constituent must elaborate on how this specific policy proposal affects them personally. Consider their age, income, occupation, education, and family situation. Explain both direct and indirect impacts on their daily life, finances, or future. Make the impact specific to their circumstances.\n\nCRITICAL: Return ONLY a valid JSON array. Do not include any explanatory text, markdown, or other formatting. The response must start with [ and end with ].\n\nCENSUS DATA FOR ACCURATE GENERATION:\nPopulation: ${censusData.population.toLocaleString()}\nMedian Income: $${censusData.medianIncome.toLocaleString()}\nDemographics: ${Object.entries(censusData.demographics).map(([demo, pct]) => `${demo}: ${pct}%`).join(', ')}\nEducation: ${Object.entries(censusData.educationLevels).map(([level, pct]) => `${level}: ${pct}%`).join(', ')}\nOccupations: ${Object.entries(censusData.occupations).map(([occ, pct]) => `${occ}: ${pct}%`).join(', ')}\n\nReturn a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`, 1000);
 
     if (response) {
       try {
@@ -501,7 +512,16 @@ Return a JSON array with objects containing: id, name, age, education, annualInc
           throw new Error('Response is not an array');
         }
         
-        return twins.map((twin: DigitalTwin, index: number) => ({
+        // Validate that we have the required fields
+        const validTwins = twins.filter(twin => 
+          twin.name && twin.age && twin.education && twin.occupation && twin.annualIncome
+        );
+        
+        if (validTwins.length === 0) {
+          throw new Error('No valid twins found in response');
+        }
+        
+        return validTwins.map((twin: DigitalTwin, index: number) => ({
           ...twin,
           id: `twin-${index + 1}`,
           zipCode: censusData.zipCode,
@@ -514,6 +534,30 @@ Return a JSON array with objects containing: id, name, age, education, annualInc
       } catch (parseError) {
         console.error('Error parsing twins response:', parseError);
         console.log('Raw response:', response);
+        
+        // Try a more aggressive JSON extraction
+        try {
+          const jsonMatch = response.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            const extractedJson = jsonMatch[0];
+            const twins = JSON.parse(extractedJson) as DigitalTwin[];
+            
+            if (Array.isArray(twins) && twins.length > 0) {
+              return twins.map((twin: DigitalTwin, index: number) => ({
+                ...twin,
+                id: `twin-${index + 1}`,
+                zipCode: censusData.zipCode,
+                demographics: typeof twin.demographics === 'object' ? 
+                  Object.values(twin.demographics).join(', ') : 
+                  String(twin.demographics || 'Unknown'),
+                policyImpact: 'To be determined based on policy analysis'
+              }));
+            }
+          }
+        } catch (secondParseError) {
+          console.error('Second parse attempt failed:', secondParseError);
+        }
+        
         return generateAccurateFallbackConstituents(censusData, 4);
       }
     }
@@ -628,8 +672,19 @@ CRITICAL REQUIREMENTS FOR ACCURACY:
 2. Racial/ethnic demographics MUST match the Census percentages
 3. Education levels MUST reflect the actual Census education data
 4. Income distribution MUST represent the FULL spectrum - from poverty level to high income
-5. Occupations MUST reflect the district's employment patterns
-6. Each constituent must have a UNIQUE personal story that fits their demographic profile
+5. Occupations MUST be SPECIFIC job titles, NOT generic categories
+6. Each constituent must have a UNIQUE personal story that fits their demographic profile AND explains how the specific policy proposal affects them personally
+
+OCCUPATION REQUIREMENTS:
+- Use SPECIFIC job titles (e.g., "Teacher", "Nurse", "Software Engineer", "Accountant", etc.)
+- DO NOT use generic terms like "Management", "Service", "Professional", "Worker"
+- Each occupation must be a specific, realistic job title
+
+PERSONAL STORY REQUIREMENT:
+- Each constituent's personal story must explain how the specific policy proposal affects them personally
+- Consider their age, income, occupation, education, and family situation
+- Explain both direct and indirect impacts on their daily life, finances, or future
+- Make the impact specific to their circumstances, not generic statements
 
 NAMING REQUIREMENT:
 - Use EXACTLY "Constituent #1", "Constituent #2", "Constituent #3", etc. for names

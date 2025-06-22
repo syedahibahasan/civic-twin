@@ -100,6 +100,110 @@ const Upload: React.FC = () => {
     }
   };
 
+  // Helper function to format education levels properly (inspired by constituentService)
+  const formatEducation = (education: string): string => {
+    const educationMap: { [key: string]: string } = {
+      // Handle camelCase from AI responses
+      'someCollege': 'Some College',
+      'bachelors': 'Bachelor\'s Degree',
+      'graduate': 'Master\'s Degree',
+      'highSchool': 'High School Diploma',
+      'lessThanHighSchool': 'High School Diploma',
+      // Handle already formatted responses
+      'Some College': 'Some College',
+      'Bachelor\'s Degree': 'Bachelor\'s Degree',
+      'Master\'s Degree': 'Master\'s Degree',
+      'Graduate Degree': 'Master\'s Degree',
+      'High School Diploma': 'High School Diploma',
+      'High School': 'High School Diploma',
+      'Less than High School': 'High School Diploma'
+    };
+    
+    return educationMap[education] || education;
+  };
+
+  // Helper function to format occupation names properly (inspired by constituentService)
+  const formatOccupation = (occupation: string): string => {
+    const occupationMap: { [key: string]: string } = {
+      // Handle generic AI responses
+      'Service/Management': 'Service Manager',
+      'Service Worker': 'Service Worker',
+      'Customer Service Rep': 'Customer Service Representative',
+      'Sales Rep': 'Sales Representative',
+      'Admin Assistant': 'Administrative Assistant',
+      'Tech Support': 'Technical Support Specialist',
+      'Data Entry': 'Data Entry Specialist',
+      'Office Clerk': 'Office Clerk',
+      'Receptionist': 'Receptionist',
+      'Secretary': 'Administrative Assistant',
+      'Clerk': 'Office Clerk',
+      'Assistant': 'Administrative Assistant',
+      'Worker': 'Factory Worker',
+      'Laborer': 'Construction Worker',
+      'Professional': 'Manager',
+      'Service': 'Service Worker',
+      'Management': 'Manager',
+      'Sales': 'Sales Representative',
+      'Administrative': 'Administrative Assistant',
+      'Technical': 'Technician',
+      'Support': 'Technical Support Specialist',
+      // Handle specific job titles that should stay as-is
+      'Teacher': 'Teacher',
+      'Nurse': 'Nurse',
+      'Doctor': 'Doctor',
+      'Engineer': 'Engineer',
+      'Manager': 'Manager',
+      'Accountant': 'Accountant',
+      'Professor': 'Professor',
+      'Lawyer': 'Lawyer',
+      'Consultant': 'Consultant',
+      'Marketing Specialist': 'Marketing Specialist',
+      'HR Manager': 'HR Manager',
+      'Restaurant Manager': 'Restaurant Manager',
+      'Retail Supervisor': 'Retail Supervisor',
+      'Hotel Manager': 'Hotel Manager',
+      'Chef': 'Chef',
+      'Construction Manager': 'Construction Manager',
+      'Electrician': 'Electrician',
+      'Plumber': 'Plumber',
+      'Carpenter': 'Carpenter',
+      'Architect': 'Architect',
+      'Government Employee': 'Government Employee',
+      'Police Officer': 'Police Officer',
+      'Firefighter': 'Firefighter',
+      'Postal Worker': 'Postal Worker',
+      'Administrator': 'Administrator',
+      'Truck Driver': 'Truck Driver',
+      'Bus Driver': 'Bus Driver',
+      'Delivery Driver': 'Delivery Driver',
+      'Pilot': 'Pilot',
+      'Train Conductor': 'Train Conductor',
+      'Factory Worker': 'Factory Worker',
+      'Machine Operator': 'Machine Operator',
+      'Quality Control': 'Quality Control Specialist',
+      'Production Manager': 'Production Manager',
+      'Technician': 'Technician',
+      'Sales Associate': 'Sales Associate',
+      'Store Manager': 'Store Manager',
+      'Cashier': 'Cashier',
+      'Customer Service': 'Customer Service Representative',
+      'Inventory Specialist': 'Inventory Specialist',
+      'Software Engineer': 'Software Engineer',
+      'Data Analyst': 'Data Analyst',
+      'IT Manager': 'IT Manager',
+      'Web Developer': 'Web Developer',
+      'Systems Administrator': 'Systems Administrator',
+      'School Administrator': 'School Administrator',
+      'Librarian': 'Librarian',
+      'Tutor': 'Tutor',
+      'Medical Assistant': 'Medical Assistant',
+      'Pharmacist': 'Pharmacist',
+      'Physical Therapist': 'Physical Therapist'
+    };
+    
+    return occupationMap[occupation] || occupation;
+  };
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -495,7 +599,7 @@ const Upload: React.FC = () => {
                         <div className="space-y-3">
                           <div className="flex items-center space-x-2">
                             <GraduationCap className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm text-gray-700">{twin.education}</span>
+                            <span className="text-sm text-gray-700">{formatEducation(twin.education)}</span>
                           </div>
                           
                           <div className="flex items-center space-x-2">
@@ -504,7 +608,7 @@ const Upload: React.FC = () => {
                           </div>
                           
                           <div className="text-sm text-gray-600">
-                            <p className="font-medium">{twin.occupation}</p>
+                            <p className="font-medium">{formatOccupation(twin.occupation)}</p>
                             <p className="text-xs mt-1 flex items-center space-x-1">
                               <span>
                                 {twin.zipCode.includes('-') ? `District: ${twin.zipCode}` : `ZIP: ${twin.zipCode}`}
