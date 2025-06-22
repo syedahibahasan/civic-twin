@@ -368,24 +368,8 @@ export async function generateDigitalTwins(censusData: CensusData, policy: Polic
 }
 
 function generateFallbackTwins(censusData: CensusData): DigitalTwin[] {
-  const names = ['Constituent #1', 'Constituent #2', 'Constituent #3', 'Constituent #4'];
-  const occupations = ['Student', 'Retail Worker', 'Teacher', 'Nurse'];
-  const educationLevels = ['High School', 'Some College', "Bachelor's Degree", "Associate's Degree"];
-  
-  return names.map((name, index) => ({
-    id: `twin-${index + 1}`,
-    name,
-    age: Math.floor(Math.random() * 30) + 20,
-    education: educationLevels[Math.floor(Math.random() * educationLevels.length)],
-    annualIncome: Math.floor(Math.random() * 40000) + 25000,
-    occupation: occupations[Math.floor(Math.random() * occupations.length)],
-    demographics: Math.random() > 0.5 ? 'Hispanic/Latino' : 'White',
-    zipCode: censusData.zipCode,
-    personalStory: `I'm ${name}, a ${Math.floor(Math.random() * 30) + 20}-year-old living in ${censusData.zipCode}. I work part-time while pursuing my education and depend on financial aid to make ends meet.`,
-    policyImpact: index % 2 === 0 
-      ? 'This policy would significantly reduce my financial aid eligibility, making it harder for me to continue my education.'
-      : 'While this policy might provide new opportunities through work-study programs, the increased credit requirements could be challenging to meet.',
-  }));
+  // Use the enhanced constituent generation function instead of hard-coded values
+  return generateUniqueFallbackConstituents(censusData, 4);
 }
 
 export async function generateChatResponse(
@@ -499,21 +483,29 @@ export async function generateConstituentsFromCensusData(censusData: CensusData,
       messages: [
         {
           role: "system",
-          content: `You are creating realistic digital twin constituents based on Census data for ZIP code ${censusData.zipCode}. Generate ${count} diverse individuals with realistic demographics, occupations, and personal stories that match the Census data.
+          content: `You are creating realistic digital twin constituents based on Census data for ZIP code ${censusData.zipCode}. Generate ${count} UNIQUE individuals with diverse demographics, occupations, and personal stories that match the Census data.
 
-IMPORTANT: Ensure that:
-1. Education levels match realistic career paths
-2. Income levels are appropriate for the education and occupation
-3. Occupations are realistic for the education level and income
-4. Demographics reflect the actual Census data
-5. Ages are realistic for the occupation and education level
-6. Use "Constituent #X" format for names (e.g., "Constituent #1", "Constituent #2")
+CRITICAL REQUIREMENTS FOR UNIQUENESS:
+1. Each constituent must have a DIFFERENT age (spread across 18-85 range)
+2. Each constituent must have a DIFFERENT ethnicity/race (distribute across available demographics)
+3. Each constituent must have a DIFFERENT occupation and career path
+4. Each constituent must have DIFFERENT education levels
+5. Each constituent must have DIFFERENT income levels appropriate for their background
+6. Each constituent must have UNIQUE personal stories and life circumstances
+7. Use "Constituent #X" format for names (e.g., "Constituent #1", "Constituent #2")
+
+ANALYZE THE CENSUS DATA TO MAKE INTELLIGENT INFERENCES:
+- Use the education distribution to determine realistic career paths
+- Use the income distribution to create varied but realistic income levels
+- Use the demographic breakdown to ensure representation matches the data
+- Use the median age to create age-appropriate life circumstances
+- Consider the population size for realistic community context
 
 Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`
         },
         {
           role: "user",
-          content: `Create ${count} realistic digital twin constituents for ZIP code ${censusData.zipCode} based on this Census data:
+          content: `Create ${count} UNIQUE and DIVERSE digital twin constituents for ZIP code ${censusData.zipCode} based on this Census data:
 
 Population: ${censusData.population.toLocaleString()}
 Median Income: $${censusData.medianIncome.toLocaleString()}
@@ -533,11 +525,17 @@ Demographics:
 - Asian: ${censusData.demographics.asian}%
 - Other: ${censusData.demographics.other}%
 
-Generate realistic constituents that reflect this demographic and economic profile. Use "Constituent #1", "Constituent #2", etc. for names. Ensure education, occupation, and income are logically consistent.`
+ANALYZE THIS DATA TO CREATE REALISTIC INFERENCES:
+- What types of jobs would people with these education levels typically have?
+- What income ranges would be realistic for different education and age combinations?
+- What life circumstances would be common in a community with this demographic makeup?
+- How would the median age and income affect family structures and housing situations?
+
+IMPORTANT: Ensure each constituent is completely unique with different ages, ethnicities, occupations, education levels, and personal stories. Use "Constituent #1", "Constituent #2", etc. for names.`
         }
       ],
-      max_tokens: 2000,
-      temperature: 0.7,
+      max_tokens: 3000,
+      temperature: 0.8,
     });
 
     const response = completion.choices[0]?.message?.content;
@@ -554,38 +552,35 @@ Generate realistic constituents that reflect this demographic and economic profi
       } catch (parseError) {
         console.error('Error parsing constituents response:', parseError);
         console.log('Raw response:', response);
-        return generateFallbackConstituents(censusData, count);
+        return generateUniqueFallbackConstituents(censusData, count);
       }
     }
     
-    return generateFallbackConstituents(censusData, count);
+    return generateUniqueFallbackConstituents(censusData, count);
   } catch (error) {
     console.error('Error generating constituents from Census data:', error);
-    return generateFallbackConstituents(censusData, count);
+    return generateUniqueFallbackConstituents(censusData, count);
   }
 }
 
-function generateFallbackConstituents(censusData: CensusData, count: number): DigitalTwin[] {
+function generateUniqueFallbackConstituents(censusData: CensusData, count: number): DigitalTwin[] {
   const constituents: DigitalTwin[] = [];
+  
+  // Pre-generate unique values to ensure diversity
+  const uniqueAges = generateUniqueAges(count, censusData.medianAge);
+  const uniqueDemographics = generateUniqueDemographics(count, censusData.demographics);
+  const uniqueOccupations = generateUniqueOccupations(count);
+  const uniqueEducationLevels = generateUniqueEducationLevels(count, censusData.educationLevels);
   
   for (let i = 0; i < count; i++) {
     const name = `Constituent #${i + 1}`;
-    const age = Math.floor(Math.max(18, Math.min(85, 
-      censusData.medianAge + (Math.random() - 0.5) * 30
-    )));
+    const age = uniqueAges[i];
+    const demographics = uniqueDemographics[i];
+    const occupation = uniqueOccupations[i];
+    const education = uniqueEducationLevels[i];
     
-    // Generate realistic income based on median
-    const incomeMultiplier = 0.5 + Math.random() * 2; // 0.5x to 2.5x median
-    const annualIncome = Math.floor(Math.max(30000, censusData.medianIncome * incomeMultiplier));
-    
-    // Select education based on Census data
-    const education = selectEducationFromCensus(censusData.educationLevels);
-    
-    // Select occupation based on education and income
-    const occupation = selectRealisticOccupation(education, annualIncome);
-    
-    // Select demographics based on Census data
-    const demographics = selectDemographicsFromCensus(censusData.demographics);
+    // Generate realistic income based on education, occupation, and age
+    const annualIncome = generateRealisticIncome(education, occupation, age, censusData.medianIncome);
     
     constituents.push({
       id: `constituent-${i + 1}`,
@@ -596,7 +591,7 @@ function generateFallbackConstituents(censusData: CensusData, count: number): Di
       occupation,
       demographics,
       zipCode: censusData.zipCode,
-      personalStory: generatePersonalStory(name, age, education, occupation, annualIncome, demographics),
+      personalStory: generateUniquePersonalStory(name, age, education, occupation, annualIncome, demographics, i, censusData),
       policyImpact: 'To be determined based on policy analysis'
     });
   }
@@ -604,90 +599,241 @@ function generateFallbackConstituents(censusData: CensusData, count: number): Di
   return constituents;
 }
 
-function selectEducationFromCensus(educationLevels: CensusData['educationLevels']): string {
-  const total = Object.values(educationLevels).reduce((sum, val) => sum + val, 0);
-  const random = Math.random() * total;
+function generateUniqueAges(count: number, medianAge: number): number[] {
+  const ages: number[] = [];
+  const ageRanges = [
+    { min: 18, max: 25, weight: 0.15 },   // Young adults
+    { min: 26, max: 35, weight: 0.20 },   // Early career
+    { min: 36, max: 45, weight: 0.20 },   // Mid career
+    { min: 46, max: 55, weight: 0.20 },   // Established career
+    { min: 56, max: 65, weight: 0.15 },   // Late career
+    { min: 66, max: 85, weight: 0.10 }    // Retirement age
+  ];
   
-  let cumulative = 0;
+  for (let i = 0; i < count; i++) {
+    let age: number;
+    do {
+      const range = ageRanges[Math.floor(Math.random() * ageRanges.length)];
+      age = Math.floor(range.min + Math.random() * (range.max - range.min + 1));
+    } while (ages.includes(age));
+    ages.push(age);
+  }
   
-  if (random < (cumulative += educationLevels.lessThanHighSchool)) {
-    return 'High School Diploma';
-  }
-  if (random < (cumulative += educationLevels.highSchool)) {
-    return 'High School Diploma';
-  }
-  if (random < (cumulative += educationLevels.someCollege)) {
-    return 'Some College';
-  }
-  if (random < (cumulative += educationLevels.bachelors)) {
-    return 'Bachelor\'s Degree';
-  }
-  return 'Master\'s Degree';
+  return ages.sort(() => Math.random() - 0.5); // Shuffle
 }
 
-function selectRealisticOccupation(education: string, income: number): string {
-  // More realistic occupation selection based on education and income
-  if (education.includes('Master') || education.includes('Doctorate')) {
-    if (income > 100000) return 'Software Engineer';
-    if (income > 80000) return 'Data Scientist';
-    if (income > 60000) return 'Teacher';
-    return 'Research Analyst';
-  } else if (education.includes('Bachelor')) {
-    if (income > 80000) return 'Marketing Manager';
-    if (income > 60000) return 'Accountant';
-    if (income > 45000) return 'Administrative Assistant';
-    return 'Customer Service Representative';
-  } else if (education.includes('Some College')) {
-    if (income > 50000) return 'Medical Assistant';
-    if (income > 40000) return 'Sales Representative';
-    return 'Retail Supervisor';
-  } else {
-    if (income > 45000) return 'Construction Worker';
-    if (income > 35000) return 'Truck Driver';
-    return 'Retail Associate';
-  }
-}
-
-function selectDemographicsFromCensus(demographics: CensusData['demographics']): string {
+function generateUniqueDemographics(count: number, demographics: CensusData['demographics']): string[] {
+  const demoArray: string[] = [];
   const total = Object.values(demographics).reduce((sum, val) => sum + val, 0);
-  const random = Math.random() * total;
   
-  let cumulative = 0;
+  // Create weighted array based on Census data
+  const weightedDemos: string[] = [];
+  Object.entries(demographics).forEach(([demo, percentage]) => {
+    const demoCount = Math.ceil((percentage / total) * count);
+    for (let i = 0; i < demoCount; i++) {
+      weightedDemos.push(demo);
+    }
+  });
   
-  if (random < (cumulative += demographics.white)) {
-    return 'White';
+  // Ensure we have enough unique demographics
+  const uniqueDemos = ['White', 'Black', 'Hispanic', 'Asian', 'Other'];
+  const result: string[] = [];
+  
+  for (let i = 0; i < count; i++) {
+    let demo: string;
+    if (weightedDemos.length > 0) {
+      const randomIndex = Math.floor(Math.random() * weightedDemos.length);
+      demo = weightedDemos.splice(randomIndex, 1)[0];
+    } else {
+      demo = uniqueDemos[i % uniqueDemos.length];
+    }
+    result.push(demo);
   }
-  if (random < (cumulative += demographics.black)) {
-    return 'Black';
-  }
-  if (random < (cumulative += demographics.hispanic)) {
-    return 'Hispanic';
-  }
-  if (random < (cumulative += demographics.asian)) {
-    return 'Asian';
-  }
-  return 'Other';
+  
+  return result.sort(() => Math.random() - 0.5); // Shuffle
 }
 
-function generatePersonalStory(
+function generateUniqueOccupations(count: number): string[] {
+  const allOccupations = [
+    // Healthcare
+    'Registered Nurse', 'Medical Assistant', 'Physical Therapist', 'Dental Hygienist', 'Pharmacy Technician',
+    // Technology
+    'Software Engineer', 'Data Analyst', 'IT Support Specialist', 'Web Developer', 'Cybersecurity Analyst',
+    // Education
+    'Elementary School Teacher', 'High School Teacher', 'College Professor', 'Special Education Teacher', 'Librarian',
+    // Business
+    'Marketing Manager', 'Human Resources Specialist', 'Accountant', 'Financial Analyst', 'Project Manager',
+    // Service
+    'Restaurant Manager', 'Hotel Manager', 'Retail Supervisor', 'Customer Service Representative', 'Sales Representative',
+    // Skilled Trades
+    'Electrician', 'Plumber', 'Carpenter', 'HVAC Technician', 'Welder',
+    // Transportation
+    'Truck Driver', 'Bus Driver', 'Delivery Driver', 'Uber Driver', 'Logistics Coordinator',
+    // Public Service
+    'Police Officer', 'Firefighter', 'Paramedic', 'Social Worker', 'City Planner',
+    // Creative
+    'Graphic Designer', 'Photographer', 'Writer', 'Musician', 'Interior Designer',
+    // Other
+    'Real Estate Agent', 'Insurance Agent', 'Legal Assistant', 'Administrative Assistant', 'Research Assistant'
+  ];
+  
+  const selectedOccupations: string[] = [];
+  const shuffled = [...allOccupations].sort(() => Math.random() - 0.5);
+  
+  for (let i = 0; i < count; i++) {
+    selectedOccupations.push(shuffled[i % shuffled.length]);
+  }
+  
+  return selectedOccupations.sort(() => Math.random() - 0.5); // Shuffle
+}
+
+function generateUniqueEducationLevels(count: number, educationLevels: CensusData['educationLevels']): string[] {
+  const educationOptions = [
+    'High School Diploma',
+    'Some College',
+    'Associate\'s Degree',
+    'Bachelor\'s Degree',
+    'Master\'s Degree',
+    'Doctorate'
+  ];
+  
+  const result: string[] = [];
+  const total = Object.values(educationLevels).reduce((sum, val) => sum + val, 0);
+  
+  // Create weighted array based on Census data
+  const weightedEducation: string[] = [];
+  if (educationLevels.highSchool > 0) {
+    const eduCount = Math.ceil((educationLevels.highSchool / total) * count);
+    for (let i = 0; i < eduCount; i++) {
+      weightedEducation.push('High School Diploma');
+    }
+  }
+  if (educationLevels.someCollege > 0) {
+    const eduCount = Math.ceil((educationLevels.someCollege / total) * count);
+    for (let i = 0; i < eduCount; i++) {
+      weightedEducation.push('Some College');
+    }
+  }
+  if (educationLevels.bachelors > 0) {
+    const eduCount = Math.ceil((educationLevels.bachelors / total) * count);
+    for (let i = 0; i < eduCount; i++) {
+      weightedEducation.push('Bachelor\'s Degree');
+    }
+  }
+  if (educationLevels.graduate > 0) {
+    const eduCount = Math.ceil((educationLevels.graduate / total) * count);
+    for (let i = 0; i < eduCount; i++) {
+      weightedEducation.push('Master\'s Degree');
+    }
+  }
+  
+  for (let i = 0; i < count; i++) {
+    let education: string;
+    if (weightedEducation.length > 0) {
+      const randomIndex = Math.floor(Math.random() * weightedEducation.length);
+      education = weightedEducation.splice(randomIndex, 1)[0];
+    } else {
+      education = educationOptions[i % educationOptions.length];
+    }
+    result.push(education);
+  }
+  
+  return result.sort(() => Math.random() - 0.5); // Shuffle
+}
+
+function generateRealisticIncome(education: string, occupation: string, age: number, medianIncome: number): number {
+  let baseMultiplier = 1.0;
+  
+  // Adjust based on education
+  if (education.includes('Doctorate')) baseMultiplier = 1.8;
+  else if (education.includes('Master')) baseMultiplier = 1.5;
+  else if (education.includes('Bachelor')) baseMultiplier = 1.3;
+  else if (education.includes('Associate')) baseMultiplier = 1.1;
+  else if (education.includes('Some College')) baseMultiplier = 0.9;
+  else baseMultiplier = 0.7;
+  
+  // Adjust based on age/experience
+  if (age < 25) baseMultiplier *= 0.7;
+  else if (age < 35) baseMultiplier *= 0.9;
+  else if (age < 45) baseMultiplier *= 1.1;
+  else if (age < 55) baseMultiplier *= 1.2;
+  else if (age < 65) baseMultiplier *= 1.1;
+  else baseMultiplier *= 0.8;
+  
+  // Add some randomness
+  const randomFactor = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+  
+  return Math.floor(Math.max(25000, medianIncome * baseMultiplier * randomFactor));
+}
+
+function generateUniquePersonalStory(
   name: string, 
   age: number, 
   education: string, 
   occupation: string, 
   income: number, 
-  demographics: string
+  demographics: string,
+  index: number,
+  censusData: CensusData
 ): string {
-  const stories = [
-    `${name} is a ${age}-year-old ${occupation.toLowerCase()} with a ${education.toLowerCase()}. They've lived in the area for ${Math.floor(Math.random() * 20) + 5} years and are concerned about local economic development.`,
-    
-    `A ${demographics.toLowerCase()} resident, ${name} works as a ${occupation.toLowerCase()} and has a ${education.toLowerCase()}. They're passionate about education and healthcare access in their community.`,
-    
-    `${name}, ${age}, is a ${occupation.toLowerCase()} who recently completed their ${education.toLowerCase()}. They're focused on affordable housing and transportation issues in the district.`,
-    
-    `With ${Math.floor(Math.random() * 20) + 10} years of experience as a ${occupation.toLowerCase()}, ${name} has seen the district change significantly. They care about maintaining the community's character while supporting growth.`,
-    
-    `${name} is a ${age}-year-old ${occupation.toLowerCase()} with a ${education.toLowerCase()}. They're particularly concerned about environmental issues and sustainable development in the area.`
+  const familySituations = [
+    'single parent with two children',
+    'married with three kids',
+    'recently divorced',
+    'empty nester',
+    'young professional living alone',
+    'caring for elderly parents',
+    'newly married couple',
+    'retired with grandchildren nearby'
   ];
   
-  return stories[Math.floor(Math.random() * stories.length)];
+  const lifeCircumstances = [
+    'recently moved to the area for work',
+    'born and raised in the community',
+    'returned after college to be near family',
+    'moved here for better schools',
+    'relocated for a job opportunity',
+    'came back after military service',
+    'moved here for retirement',
+    'transferred from another state'
+  ];
+  
+  const communityInvolvement = [
+    'volunteers at the local food bank',
+    'coaches youth sports',
+    'serves on the PTA board',
+    'participates in neighborhood watch',
+    'attends city council meetings',
+    'member of the local chamber of commerce',
+    'volunteers at the library',
+    'active in their church community'
+  ];
+  
+  const concerns = [
+    'worried about rising property taxes',
+    'concerned about school funding',
+    'focused on healthcare accessibility',
+    'passionate about environmental protection',
+    'interested in economic development',
+    'concerned about public safety',
+    'worried about affordable housing',
+    'focused on transportation infrastructure'
+  ];
+  
+  const familySituation = familySituations[index % familySituations.length];
+  const lifeCircumstance = lifeCircumstances[index % lifeCircumstances.length];
+  const involvement = communityInvolvement[index % communityInvolvement.length];
+  const concern = concerns[index % concerns.length];
+  
+  // Add Census data context to make the story more realistic
+  const incomeContext = income < censusData.medianIncome * 0.7 ? 'below the median income' :
+                       income > censusData.medianIncome * 1.3 ? 'above the median income' :
+                       'around the median income';
+  
+  const ageContext = age < 30 ? 'young professional' :
+                    age < 50 ? 'mid-career professional' :
+                    age < 65 ? 'established professional' :
+                    'retired or semi-retired';
+  
+  return `${name} is a ${age}-year-old ${demographics.toLowerCase()} ${occupation.toLowerCase()} with a ${education.toLowerCase()}. They are a ${familySituation} who ${lifeCircumstance}. ${name} ${involvement} and is particularly ${concern}. With an annual income of $${income.toLocaleString()} (${incomeContext} for this area), they represent the diverse economic and social fabric of the ${censusData.population.toLocaleString()}-person community. As a ${ageContext}, they bring unique perspectives shaped by the local demographic makeup and economic conditions.`;
 }

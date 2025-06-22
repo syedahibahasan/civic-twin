@@ -10,9 +10,10 @@ import { DigitalTwin } from '../types';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 const ConstituentList: React.FC = () => {
-  const { constituents, isLoading, error, refresh, stats, totalPopulation, censusDemographics, censusOccupations, censusAgeGroups, censusEconomicIndicators } = useConstituents(15);
+  const { constituents, isLoading, error, refresh, stats, totalPopulation, censusDemographics, censusOccupations, censusAgeGroups, censusEconomicIndicators } = useConstituents(20);
   const [selectedConstituent, setSelectedConstituent] = useState<DigitalTwin | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [filterType, setFilterType] = useState<string>('all');
 
   const openChat = (constituent: DigitalTwin) => {
     setSelectedConstituent(constituent);
@@ -23,6 +24,35 @@ const ConstituentList: React.FC = () => {
     setIsChatOpen(false);
     setSelectedConstituent(null);
   };
+
+  // Filter constituents based on type
+  const filteredConstituents = constituents.filter(constituent => {
+    if (filterType === 'all') return true;
+    
+    const occupation = constituent.occupation.toLowerCase();
+    const story = constituent.personalStory.toLowerCase();
+    
+    switch (filterType) {
+      case 'students':
+        return occupation.includes('student') || story.includes('student') || story.includes('college') || story.includes('university');
+      case 'professionals':
+        return occupation.includes('engineer') || occupation.includes('manager') || occupation.includes('analyst') || occupation.includes('consultant');
+      case 'business':
+        return occupation.includes('owner') || occupation.includes('entrepreneur') || story.includes('business') || story.includes('company');
+      case 'seniors':
+        return constituent.age > 65 || story.includes('retire') || story.includes('senior');
+      case 'parents':
+        return story.includes('parent') || story.includes('child') || story.includes('family');
+      case 'veterans':
+        return story.includes('veteran') || story.includes('military') || story.includes('service');
+      case 'healthcare':
+        return occupation.includes('nurse') || occupation.includes('doctor') || occupation.includes('medical') || occupation.includes('healthcare');
+      case 'teachers':
+        return occupation.includes('teacher') || occupation.includes('professor') || occupation.includes('educator');
+      default:
+        return true;
+    }
+  });
 
   // Check if we have real Census data (district-level or valid ZIP codes)
   const hasRealData = totalPopulation > 0 && (censusDemographics || constituents.some(c => c.zipCode && c.zipCode.length === 5));
@@ -337,6 +367,43 @@ const ConstituentList: React.FC = () => {
         </div>
       </div>
 
+      {/* Filter Section */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex items-center space-x-4">
+          <span className="text-sm font-medium text-gray-700">Filter by type:</span>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { key: 'all', label: 'All Types' },
+              { key: 'students', label: 'Students' },
+              { key: 'professionals', label: 'Professionals' },
+              { key: 'business', label: 'Business Owners' },
+              { key: 'seniors', label: 'Seniors' },
+              { key: 'parents', label: 'Parents' },
+              { key: 'veterans', label: 'Veterans' },
+              { key: 'healthcare', label: 'Healthcare' },
+              { key: 'teachers', label: 'Teachers' }
+            ].map((filter) => (
+              <button
+                key={filter.key}
+                onClick={() => setFilterType(filter.key)}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                  filterType === filter.key
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {filterType !== 'all' && (
+          <div className="mt-2 text-sm text-gray-600">
+            Showing {filteredConstituents.length} of {constituents.length} constituents
+          </div>
+        )}
+      </div>
+
       {/* Data Source Info */}
       {hasRealData && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -390,7 +457,7 @@ const ConstituentList: React.FC = () => {
 
       {/* Constituent Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {constituents.map((constituent) => (
+        {filteredConstituents.map((constituent) => (
           <div key={constituent.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -451,7 +518,7 @@ const ConstituentList: React.FC = () => {
         ))}
       </div>
 
-      {constituents.length === 0 && (
+      {filteredConstituents.length === 0 && (
         <div className="text-center py-8">
           <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600">No constituents found for your district.</p>

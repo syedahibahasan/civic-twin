@@ -10,12 +10,20 @@ import {
   FileText,
   Users,
   MapPin,
-  Flag
+  Flag,
+  MessageCircle,
+  TrendingUp,
+  DollarSign,
+  GraduationCap,
+  Briefcase
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import UploadPage from './Upload';
 import Profile from './Profile';
 import ConstituentList from '../components/ConstituentList';
+import useConstituents from '../hooks/useConstituents';
+import { DigitalTwin } from '../types';
+import ConstituentChat from '../components/ConstituentChat';
 
 const Dashboard: React.FC = () => {
   const { state, logout } = useAuth();
@@ -153,8 +161,21 @@ const Dashboard: React.FC = () => {
 const DashboardHome: React.FC = () => {
   const { state } = useAuth();
   const navigate = useNavigate();
+  const { constituents, isLoading, error, refreshCommonTypes, totalPopulation, censusDemographics } = useConstituents(15, true);
+  const [selectedConstituent, setSelectedConstituent] = useState<DigitalTwin | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   if (!state.user) return null;
+
+  const openChat = (constituent: DigitalTwin) => {
+    setSelectedConstituent(constituent);
+    setIsChatOpen(true);
+  };
+
+  const closeChat = () => {
+    setIsChatOpen(false);
+    setSelectedConstituent(null);
+  };
 
   const quickActions = [
     {
@@ -213,6 +234,100 @@ const DashboardHome: React.FC = () => {
         </div>
       </div>
 
+      {/* District Overview with Census Data */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">District Overview</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-600">{totalPopulation.toLocaleString()}</div>
+            <div className="text-sm text-gray-600">Total Population</div>
+          </div>
+          {censusDemographics && (
+            <>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-green-600">{censusDemographics.hispanic}%</div>
+                <div className="text-sm text-gray-600">Hispanic/Latino</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-purple-600">{censusDemographics.asian}%</div>
+                <div className="text-sm text-gray-600">Asian</div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Common Constituent Types */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Common Constituent Types</h2>
+          <button
+            onClick={refreshCommonTypes}
+            disabled={isLoading}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            <TrendingUp className="h-4 w-4" />
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600">Generating constituent profiles...</span>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-600">{error}</p>
+            <button
+              onClick={refreshCommonTypes}
+              className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {constituents.slice(0, 9).map((constituent) => (
+              <div key={constituent.id} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{constituent.name}</h3>
+                    <p className="text-sm text-gray-600">{constituent.age} years old • {constituent.demographics}</p>
+                  </div>
+                  <button
+                    onClick={() => openChat(constituent)}
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Chat with constituent"
+                  >
+                    <MessageCircle className="h-5 w-5" />
+                  </button>
+                </div>
+                
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center space-x-2">
+                    <Briefcase className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm text-gray-700">{constituent.occupation}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <GraduationCap className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm text-gray-700">{constituent.education}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm text-gray-700">${constituent.annualIncome.toLocaleString()}/year</span>
+                  </div>
+                </div>
+
+                <div className="text-sm text-gray-600 line-clamp-3">
+                  {constituent.personalStory.substring(0, 120)}...
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Quick Actions */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
@@ -233,14 +348,14 @@ const DashboardHome: React.FC = () => {
         </div>
       </div>
 
-      {/* Recent Activity or Stats */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">District Overview</h2>
-        <p className="text-gray-600">
-          Your district, {state.user.district}, has been analyzed with demographic data from the Census Bureau. 
-          Click "View Constituents" to see detailed profiles of your constituents and how they might be affected by policy changes.
-        </p>
-      </div>
+      {/* Chat Modal */}
+      {isChatOpen && selectedConstituent && (
+        <ConstituentChat
+          constituent={selectedConstituent}
+          isOpen={isChatOpen}
+          onClose={closeChat}
+        />
+      )}
     </div>
   );
 };
