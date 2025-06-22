@@ -91,12 +91,29 @@ export async function generateGroqConstituentResponse(
   context?: string
 ): Promise<string> {
   try {
+    // Check if API key is available and properly formatted
+    if (!GROQ_API_KEY || GROQ_API_KEY.trim() === '') {
+      console.warn('GROQ API key not configured, using fallback responses');
+      return generateFallbackChatResponse(message, twin);
+    }
+
+    // Clean the API key (remove any whitespace or quotes)
+    const cleanApiKey = GROQ_API_KEY.trim().replace(/['"]/g, '');
+    
+    if (cleanApiKey === 'VITE_GROQ_API_KEY' || cleanApiKey === 'your_groq_api_key_here') {
+      console.warn('GROQ API key appears to be placeholder, using fallback responses');
+      return generateFallbackChatResponse(message, twin);
+    }
+
+    console.log('Calling Groq API for:', twin.name, 'with message:', message);
+    console.log('API key length:', cleanApiKey.length);
+    
     const personalityPrompt = buildConstituentPersonalityPrompt(twin, context);
     
     const response = await fetch(GROQ_API_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Authorization': `Bearer ${cleanApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -111,21 +128,33 @@ export async function generateGroqConstituentResponse(
             content: message
           }
         ],
-        max_tokens: 250,
-        temperature: 0.7,
-        top_p: 0.9,
+        max_tokens: 500,
+        temperature: 0.9,
+        top_p: 0.95,
+        frequency_penalty: 0.1,
+        presence_penalty: 0.1,
       }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Groq API error:', response.status, errorText);
+      
+      if (response.status === 401) {
+        console.error('Authentication failed. Please check your GROQ API key.');
+        return generateFallbackChatResponse(message, twin);
+      }
+      
       throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('Groq API response received for:', twin.name);
     return data.choices[0]?.message?.content || 'I need to think about that for a moment.';
   } catch (error) {
     console.error('Error generating Groq constituent response:', error);
-    return 'I apologize, but I\'m having trouble responding right now.';
+    // Return a fallback response instead of throwing
+    return generateFallbackChatResponse(message, twin);
   }
 }
 
@@ -138,20 +167,20 @@ YOUR BACKGROUND:
 - Demographics: ${twin.demographics}
 - Personal Story: ${twin.personalStory}
 
-YOUR PERSONALITY:
-- Speak naturally as this person would
-- Use language appropriate for your education level
-- Express your unique perspective based on your life circumstances
-- Be conversational and authentic
-- Show your personality through your responses
+BE YOURSELF:
+- Respond naturally as this person would in a real conversation
+- Don't be overly formal or scripted
+- Show your personality, quirks, and unique perspective
+- Feel free to ask questions, share stories, or express emotions
+- Be authentic and conversational
 
 ${context ? `CURRENT CONTEXT: ${context}` : ''}
 
-RESPONSE GUIDELINES:
+RESPONSE STYLE:
 - Stay in character as ${twin.name}
-- Respond as if you're having a real conversation
-- Share your thoughts, concerns, and experiences
-- Be honest about how things affect you personally
-- Keep responses conversational and under 100 words
-- Use "I" statements and speak from your perspective`;
+- Be conversational and natural
+- Share your thoughts, feelings, and experiences
+- Don't worry about being perfect - just be real
+- You can be passionate, concerned, hopeful, or skeptical
+- Feel free to elaborate and share details about your life`;
 } 
