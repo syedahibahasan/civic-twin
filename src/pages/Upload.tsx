@@ -460,11 +460,6 @@ const Upload: React.FC = () => {
                         <p className="text-sm text-gray-600 mb-2 font-medium">Personal Story:</p>
                         <p className="text-sm text-gray-700">{twin.personalStory}</p>
                       </div>
-
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                        <p className="text-sm text-amber-800 font-medium mb-1">Policy Impact:</p>
-                        <p className="text-sm text-amber-700">{twin.policyImpact}</p>
-                      </div>
                     </div>
                   </div>
                 ))}

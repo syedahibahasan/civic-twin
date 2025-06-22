@@ -334,24 +334,14 @@ export async function generateDigitalTwins(censusData: CensusData, policy: Polic
       messages: [
         {
           role: "system",
-          content: `You are creating realistic digital twin constituents based on Census data for ZIP code ${censusData.zipCode}. Generate 4 diverse individuals with realistic demographics, occupations, and personal stories. Each twin should have a unique perspective on how the policy affects them.
-
-IMPORTANT: For each twin, analyze how the specific policy would impact their life circumstances, income, education, family situation, and daily life. Consider their age, occupation, education level, income, and personal story when determining the policy impact.
-
-Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory, policyImpact`
+          content: `You are creating realistic digital twin constituents based on Census data for ZIP code ${censusData.zipCode}. Generate 4 diverse individuals with realistic demographics, occupations, and personal stories. Each twin should have a unique perspective on how the policy affects them.`
         },
         {
           role: "user",
-          content: `Create 4 digital twin constituents for ZIP code ${censusData.zipCode} based on this policy:
-
-${policy.summary}
-
-For each twin, provide a detailed analysis of how this specific policy would impact them personally, considering their unique circumstances. The policy impact should be realistic and specific to their situation.
-
-Return a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory, policyImpact`
+          content: `Create 4 digital twin constituents for ZIP code ${censusData.zipCode} based on this policy:\n\n${policy.summary}\n\nReturn a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`
         }
       ],
-      max_tokens: 2000,
+      max_tokens: 1000,
       temperature: 0.8,
     });
 
@@ -363,83 +353,24 @@ Return a JSON array with objects containing: id, name, age, education, annualInc
           ...twin,
           id: `twin-${index + 1}`,
           zipCode: censusData.zipCode,
-          // Ensure policy impact is generated
-          policyImpact: twin.policyImpact || generateFallbackPolicyImpact(twin, policy)
+          policyImpact: 'To be determined based on policy analysis'
         }));
       } catch (parseError) {
         console.error('Error parsing twins response:', parseError);
-        return generateFallbackTwins(censusData, policy);
+        return generateFallbackTwins(censusData);
       }
     }
     
-    return generateFallbackTwins(censusData, policy);
+    return generateFallbackTwins(censusData);
   } catch (error) {
     console.error('Error generating digital twins:', error);
-    return generateFallbackTwins(censusData, policy);
+    return generateFallbackTwins(censusData);
   }
 }
 
-function generateFallbackTwins(censusData: CensusData, policy: Policy): DigitalTwin[] {
-  // Use the enhanced constituent generation function with policy impact
-  return generateUniqueFallbackConstituents(censusData, 4, policy);
-}
-
-function generateFallbackPolicyImpact(twin: DigitalTwin, policy: Policy): string {
-  // Analyze policy content to determine impact
-  const policyLower = policy.summary.toLowerCase();
-  
-  // Check for different policy types
-  const hasEducation = policyLower.includes('education') || policyLower.includes('student') || policyLower.includes('school') || policyLower.includes('college');
-  const hasHealthcare = policyLower.includes('health') || policyLower.includes('medical') || policyLower.includes('insurance') || policyLower.includes('care');
-  const hasHousing = policyLower.includes('housing') || policyLower.includes('rent') || policyLower.includes('home') || policyLower.includes('property');
-  const hasTax = policyLower.includes('tax') || policyLower.includes('income') || policyLower.includes('deduction') || policyLower.includes('credit');
-  const hasSocialSecurity = policyLower.includes('social security') || policyLower.includes('retirement') || policyLower.includes('benefits');
-  const hasVeteran = policyLower.includes('veteran') || policyLower.includes('military') || policyLower.includes('service');
-  
-  // Generate impact based on twin characteristics and policy type
-  if (hasEducation) {
-    if (twin.education.includes('Student') || twin.age < 25) {
-      return `This education policy directly affects my ability to afford college. As a ${twin.age}-year-old with ${twin.education.toLowerCase()}, I'm concerned about how changes to financial aid or student loan programs will impact my educational goals and future debt burden.`;
-    } else if (twin.education.includes('Bachelor') || twin.education.includes('Master')) {
-      return `Having completed my ${twin.education.toLowerCase()}, I'm concerned about how this education policy might affect my children's future opportunities or my ability to help them with college costs.`;
-    } else {
-      return `As someone with ${twin.education.toLowerCase()}, I'm interested in how this education policy might create new opportunities for career advancement or continuing education.`;
-    }
-  } else if (hasHealthcare) {
-    if (twin.annualIncome < 50000) {
-      return `This healthcare policy could significantly impact my access to affordable care. With my income of $${twin.annualIncome.toLocaleString()}, I'm particularly concerned about changes to insurance costs and coverage options.`;
-    } else if (twin.age > 60) {
-      return `As a ${twin.age}-year-old, this healthcare policy directly affects my Medicare benefits and prescription drug costs. I'm worried about how changes might impact my monthly budget and quality of care.`;
-    } else {
-      return `This healthcare policy could affect my employer-provided insurance and out-of-pocket costs. I'm monitoring how it might impact my family's healthcare decisions and expenses.`;
-    }
-  } else if (hasHousing) {
-    if (twin.demographics.includes('Renter') || twin.annualIncome < 60000) {
-      return `This housing policy directly affects my ability to afford stable housing. With my income of $${twin.annualIncome.toLocaleString()}, I'm concerned about rent increases, housing assistance, and my ability to save for a down payment.`;
-    } else {
-      return `As a homeowner, this housing policy could affect my property values, property taxes, and ability to maintain my home. I'm interested in how it might impact the local housing market.`;
-    }
-  } else if (hasTax) {
-    const taxImpact = twin.annualIncome < 40000 ? 'positively' : twin.annualIncome > 100000 ? 'negatively' : 'moderately';
-    return `This tax policy will ${taxImpact} impact my take-home pay of $${twin.annualIncome.toLocaleString()}. I'm concerned about how changes to deductions, credits, or rates will affect my monthly budget and long-term financial planning.`;
-  } else if (hasSocialSecurity) {
-    if (twin.age > 55) {
-      return `This Social Security policy directly affects my retirement security. As a ${twin.age}-year-old, I'm concerned about benefit changes, retirement age adjustments, and how this will impact my financial planning.`;
-    } else {
-      return `This Social Security policy affects my future retirement benefits. I'm monitoring how changes might impact my long-term financial planning and the security of future retirees.`;
-    }
-  } else if (hasVeteran) {
-    return `As a veteran, this policy directly affects my access to benefits and services. I'm concerned about how changes might impact my healthcare, education benefits, and other support services I rely on.`;
-  } else {
-    // Generic impact based on income and age
-    if (twin.annualIncome < 40000) {
-      return `This policy could significantly impact my financial situation. With my income of $${twin.annualIncome.toLocaleString()}, I'm concerned about how any changes might affect my ability to make ends meet and support my family.`;
-    } else if (twin.age < 30) {
-      return `As a young professional, this policy could affect my career opportunities and financial future. I'm interested in how it might impact job creation, economic growth, and my ability to build wealth.`;
-    } else {
-      return `This policy could affect my community and local economy. I'm monitoring how changes might impact local businesses, employment opportunities, and the overall quality of life in our area.`;
-    }
-  }
+function generateFallbackTwins(censusData: CensusData): DigitalTwin[] {
+  // Use the enhanced constituent generation function instead of hard-coded values
+  return generateUniqueFallbackConstituents(censusData, 4);
 }
 
 export async function generateChatResponse(
@@ -481,11 +412,11 @@ export async function generatePolicySuggestions(
       messages: [
         {
           role: "system",
-          content: "You are a policy analyst. Based on the digital twins' feedback and the policy details, generate 4 specific, actionable suggestions to improve the policy. Focus on addressing the concerns raised by the constituents."
+          content: "You are a policy analyst. Based on the digital twins' characteristics and the policy details, generate 4 specific, actionable suggestions to improve the policy. Focus on addressing potential concerns that constituents with these demographics and circumstances might have."
         },
         {
           role: "user",
-          content: `Policy: ${policy.summary}\n\nDigital Twins Feedback:\n${twins.map(twin => `- ${twin.name}: ${twin.policyImpact}`).join('\n')}\n\nGenerate 4 policy improvement suggestions. Return as JSON array with objects containing: id, title, description, impactedPopulation, severity (high/medium/low)`
+          content: `Policy: ${policy.summary}\n\nDigital Twins Characteristics:\n${twins.map(twin => `- ${twin.name}: ${twin.age} years old, ${twin.occupation}, ${twin.education}, $${twin.annualIncome.toLocaleString()}/year, ${twin.demographics}. Story: ${twin.personalStory}`).join('\n')}\n\nGenerate 4 policy improvement suggestions. Return as JSON array with objects containing: id, title, description, impactedPopulation, severity (high/medium/low)`
         }
       ],
       max_tokens: 800,
@@ -633,7 +564,7 @@ IMPORTANT: Ensure each constituent is completely unique with different ages, eth
   }
 }
 
-function generateUniqueFallbackConstituents(censusData: CensusData, count: number, policy?: Policy): DigitalTwin[] {
+function generateUniqueFallbackConstituents(censusData: CensusData, count: number): DigitalTwin[] {
   const constituents: DigitalTwin[] = [];
   
   // Pre-generate unique values to ensure diversity
@@ -652,7 +583,7 @@ function generateUniqueFallbackConstituents(censusData: CensusData, count: numbe
     // Generate realistic income based on education, occupation, and age
     const annualIncome = generateRealisticIncome(education, occupation, age, censusData.medianIncome);
     
-    const twin: DigitalTwin = {
+    constituents.push({
       id: `constituent-${i + 1}`,
       name,
       age,
@@ -663,14 +594,7 @@ function generateUniqueFallbackConstituents(censusData: CensusData, count: numbe
       zipCode: censusData.zipCode,
       personalStory: generateUniquePersonalStory(name, age, education, occupation, annualIncome, demographics, i, censusData),
       policyImpact: 'To be determined based on policy analysis'
-    };
-    
-    // Generate policy impact if policy is provided
-    if (policy) {
-      twin.policyImpact = generateFallbackPolicyImpact(twin, policy);
-    }
-    
-    constituents.push(twin);
+    });
   }
   
   return constituents;
