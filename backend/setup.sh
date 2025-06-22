@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Setting up CivicTwin Backend..."
+echo "🚀 Setting up Replicant Backend..."
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then

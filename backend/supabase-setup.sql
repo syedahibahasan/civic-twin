@@ -1,4 +1,4 @@
--- CivicTwin Users Table Setup
+-- Replicant Users Table Setup
 -- Run this script in your Supabase SQL Editor
 
 -- Create users table

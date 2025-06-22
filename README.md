@@ -1,8 +1,8 @@
-# CivicTwin 🏛️
+# Replicant 🏛️
 
 **AI-powered policy impact analysis for congressmen and legislative staff**
 
-CivicTwin uses artificial intelligence and Census data to simulate how policies affect real constituents. Upload a bill, meet digital twins, and get actionable feedback before implementation.
+Replicant uses artificial intelligence and Census data to simulate how policies affect real constituents. Upload a bill, meet digital twins, and get actionable feedback before implementation.
 
 ## ✨ Features
 

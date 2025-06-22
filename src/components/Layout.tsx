@@ -22,7 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center space-x-2">
               <Building2 className="h-8 w-8 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">CivicTwin</span>
+              <span className="text-xl font-bold text-gray-900">Replicant</span>
             </Link>
             
             <div className="hidden md:flex space-x-8">

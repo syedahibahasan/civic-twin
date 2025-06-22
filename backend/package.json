@@ -1,7 +1,7 @@
 {
   "name": "civic-twin-backend",
   "version": "1.0.0",
-  "description": "Backend API for CivicTwin with Supabase authentication",
+  "description": "Backend API for Replicant with Supabase authentication",
   "main": "src/index.js",
   "type": "module",
   "scripts": {

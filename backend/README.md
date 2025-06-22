@@ -1,6 +1,6 @@
-# CivicTwin Backend API
+# Replicant Backend API
 
-A Node.js/Express backend with Supabase authentication for the CivicTwin application.
+A Node.js/Express backend with Supabase authentication for the Replicant application.
 
 ## Features
 

@@ -50,7 +50,7 @@ const Landing: React.FC = () => {
             {/* Logo */}
             <div className="flex items-center space-x-2">
               <Building2 className="h-8 w-8 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">CivicTwin</span>
+              <span className="text-xl font-bold text-gray-900">Replicant</span>
             </div>
 
             {/* Navigation */}
@@ -96,7 +96,7 @@ const Landing: React.FC = () => {
                 <span className="text-blue-600 block">Real People</span>
               </h1>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-                CivicTwin uses AI and Census data to simulate how your policies impact real constituents. 
+                Replicant uses AI and Census data to simulate how your policies impact real constituents. 
                 Upload a bill, meet digital twins, and get actionable feedback before implementation.
               </p>
             </div>
@@ -135,7 +135,7 @@ const Landing: React.FC = () => {
           <div id="benefits" className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100">
             <div className="max-w-4xl mx-auto">
               <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">
-                Why Congressional Staff Love CivicTwin
+                Why Congressional Staff Love Replicant
               </h2>
               <div className="grid sm:grid-cols-2 gap-6">
                 {benefits.map((benefit, index) => (
@@ -152,7 +152,7 @@ const Landing: React.FC = () => {
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-center text-white">
             <h2 className="text-3xl font-bold mb-4">Ready to Transform Policy Making?</h2>
             <p className="text-blue-100 mb-6 text-lg">
-              Join hundreds of congressional offices using CivicTwin to create better policies.
+              Join hundreds of congressional offices using Replicant to create better policies.
             </p>
             <Link
               to="/login"
@@ -173,7 +173,7 @@ const Landing: React.FC = () => {
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center space-x-2 mb-4">
                 <Building2 className="h-8 w-8 text-blue-400" />
-                <span className="text-xl font-bold">CivicTwin</span>
+                <span className="text-xl font-bold">Replicant</span>
               </div>
               <p className="text-gray-400 mb-4 max-w-md">
                 AI-powered policy impact analysis for congressmen and legislative staff. 
@@ -220,7 +220,7 @@ const Landing: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-400">
               <div className="flex items-center space-x-2">
                 <Mail className="h-4 w-4" />
-                <span>contact@civictwin.com</span>
+                <span>contact@replicant.com</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Phone className="h-4 w-4" />
@@ -235,7 +235,7 @@ const Landing: React.FC = () => {
 
           {/* Copyright */}
           <div className="border-t border-gray-800 mt-6 pt-6 text-center text-sm text-gray-400">
-            <p>&copy; 2024 CivicTwin. All rights reserved. Built for better policy making.</p>
+            <p>&copy; 2024 Replicant. All rights reserved. Built for better policy making.</p>
           </div>
         </div>
       </footer>

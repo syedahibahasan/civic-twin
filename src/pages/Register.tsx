@@ -91,7 +91,7 @@ const Register: React.FC = () => {
             <Building2 className="h-12 w-12 text-blue-600" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Join CivicTwin
+            Join Replicant
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Create your account to start analyzing policy impact

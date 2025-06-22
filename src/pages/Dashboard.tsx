@@ -68,7 +68,7 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 bg-white">
           <div className="flex items-center space-x-2">
             <Building2 className="h-8 w-8 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900">CivicTwin</span>
+            <span className="text-xl font-bold text-gray-900">Replicant</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
