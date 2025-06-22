@@ -314,7 +314,7 @@ export async function generateDigitalTwins(censusData: CensusData, policy: Polic
         },
         {
           role: "user",
-          content: `Create 4 digital twin constituents for ZIP code ${censusData.zipCode} based on this policy:\n\n${policy.summary}\n\nReturn a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory, policyImpact`
+          content: `Create 4 digital twin constituents for ZIP code ${censusData.zipCode} based on this policy:\n\n${policy.summary}\n\nReturn a JSON array with objects containing: id, name, age, education, annualIncome, occupation, demographics, zipCode, personalStory`
         }
       ],
       max_tokens: 1000,
@@ -329,6 +329,7 @@ export async function generateDigitalTwins(censusData: CensusData, policy: Polic
           ...twin,
           id: `twin-${index + 1}`,
           zipCode: censusData.zipCode,
+          policyImpact: 'To be determined based on policy analysis'
         }));
       } catch (parseError) {
         console.error('Error parsing twins response:', parseError);
@@ -387,11 +388,11 @@ export async function generatePolicySuggestions(
       messages: [
         {
           role: "system",
-          content: "You are a policy analyst. Based on the digital twins' feedback and the policy details, generate 4 specific, actionable suggestions to improve the policy. Focus on addressing the concerns raised by the constituents."
+          content: "You are a policy analyst. Based on the digital twins' characteristics and the policy details, generate 4 specific, actionable suggestions to improve the policy. Focus on addressing potential concerns that constituents with these demographics and circumstances might have."
         },
         {
           role: "user",
-          content: `Policy: ${policy.summary}\n\nDigital Twins Feedback:\n${twins.map(twin => `- ${twin.name}: ${twin.policyImpact}`).join('\n')}\n\nGenerate 4 policy improvement suggestions. Return as JSON array with objects containing: id, title, description, impactedPopulation, severity (high/medium/low)`
+          content: `Policy: ${policy.summary}\n\nDigital Twins Characteristics:\n${twins.map(twin => `- ${twin.name}: ${twin.age} years old, ${twin.occupation}, ${twin.education}, $${twin.annualIncome.toLocaleString()}/year, ${twin.demographics}. Story: ${twin.personalStory}`).join('\n')}\n\nGenerate 4 policy improvement suggestions. Return as JSON array with objects containing: id, title, description, impactedPopulation, severity (high/medium/low)`
         }
       ],
       max_tokens: 800,
