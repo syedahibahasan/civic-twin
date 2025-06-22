@@ -1,9 +1,23 @@
-import React from 'react';
-import { Users, RefreshCw, TrendingUp, DollarSign, GraduationCap, Calendar } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, RefreshCw, TrendingUp, DollarSign, GraduationCap, Calendar, MessageCircle } from 'lucide-react';
 import useConstituents from '../hooks/useConstituents';
+import ConstituentChat from './ConstituentChat';
+import { DigitalTwin } from '../types';
 
 const ConstituentList: React.FC = () => {
   const { constituents, isLoading, error, refresh, stats } = useConstituents(15);
+  const [selectedConstituent, setSelectedConstituent] = useState<DigitalTwin | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  const openChat = (constituent: DigitalTwin) => {
+    setSelectedConstituent(constituent);
+    setIsChatOpen(true);
+  };
+
+  const closeChat = () => {
+    setIsChatOpen(false);
+    setSelectedConstituent(null);
+  };
 
   if (isLoading) {
     return (
@@ -123,6 +137,17 @@ const ConstituentList: React.FC = () => {
                 <p className="text-xs text-green-700">{constituent.policyImpact}</p>
               </div>
             )}
+
+            {/* Chat Button */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <button
+                onClick={() => openChat(constituent)}
+                className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>Chat with {constituent.name.split(' ')[0]}</span>
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -132,6 +157,15 @@ const ConstituentList: React.FC = () => {
           <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600">No constituents found for your district.</p>
         </div>
+      )}
+
+      {/* Chat Modal */}
+      {selectedConstituent && (
+        <ConstituentChat
+          constituent={selectedConstituent}
+          isOpen={isChatOpen}
+          onClose={closeChat}
+        />
       )}
     </div>
   );
